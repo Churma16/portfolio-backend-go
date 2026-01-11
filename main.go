@@ -2,30 +2,40 @@ package main
 
 import (
 	"database/sql"
+	db "go-portfolio-api/db/sqlc"
+	"go-portfolio-api/internal/api"
 	"log"
-	"net/http"
+	"os"
 
-	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-// GANTI PASSWORD 'secret' DENGAN PASSWORD ANDA JUGA DISINI
-const dbSource = "postgresql://postgres:root@localhost:5432/go_portfolio_db?sslmode=disable"
-
 func main() {
-	conn, err := sql.Open("postgres", dbSource)
+	// 1. Load file .env
+	err := godotenv.Load("app.env")
 	if err != nil {
-		log.Fatal("Gagal connect DB:", err)
+		log.Fatal("Error loading .env file")
 	}
 
-	if err = conn.Ping(); err != nil {
-		log.Fatal("DB tidak merespon:", err)
+	dbDriver := os.Getenv("DB_DRIVER")
+	dbSource := os.Getenv("DB_SOURCE")
+	serverAddress := os.Getenv("SERVER_ADDRESS")
+
+	// 2. Konek Database
+	conn, err := sql.Open(dbDriver, dbSource)
+	if err != nil {
+		log.Fatal("cannot connect to db:", err)
 	}
 
-	r := gin.Default()
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "Sukses! Database Terkoneksi via Make!"})
-	})
+	// 3. Init Store & Server
+	store := db.New(conn)
+	server := api.NewServer(store)
 
-	r.Run(":8080")
+	// 4. Jalankan Server
+	log.Println("Server running on", serverAddress)
+	err = server.Start(serverAddress)
+	if err != nil {
+		log.Fatal("cannot start server:", err)
+	}
 }
