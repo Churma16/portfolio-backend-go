@@ -9,3 +9,4 @@ DROP TABLE IF EXISTS tags;                        -- Baru
 DROP TABLE IF EXISTS tech_stacks;
 DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS messages;

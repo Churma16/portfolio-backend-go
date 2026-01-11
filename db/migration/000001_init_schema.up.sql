@@ -16,6 +16,15 @@ CREATE TABLE categories (
                             created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+create table messages (
+                            id BIGSERIAL PRIMARY KEY,
+                            name VARCHAR NOT NULL,
+                            email VARCHAR NOT NULL,
+                            content TEXT NOT NULL,
+                            is_read BOOLEAN DEFAULT false,
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE tech_stacks (
                              id BIGSERIAL PRIMARY KEY,
                              name VARCHAR NOT NULL,
