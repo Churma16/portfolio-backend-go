@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sqlc-dev/pqtype"
@@ -24,6 +25,23 @@ type createProfileRequest struct {
 }
 
 // Struct agar output JSON bersih (tanpa String/Valid)
+type profileResponse struct {
+	ID             int64           `json:"id"`
+	UserID         int64           `json:"user_id"`
+	Name           string          `json:"name"`
+	Headline       string          `json:"headline"`
+	Role           string          `json:"role"`
+	BioShort       string          `json:"bio_short"`
+	BioLong        string          `json:"bio_long"`
+	Location       string          `json:"location"`
+	IsHireable     bool            `json:"is_hireable"`
+	Avatar         string          `json:"avatar"`
+	CvFiles        string          `json:"cv_files"`
+	HeroImageCodes string          `json:"hero_image_codes"`
+	Socials        json.RawMessage `json:"socials"`
+	CreatedAt      string          `json:"created_at"`
+	UpdatedAt      string          `json:"updated_at"`
+}
 
 func (server *Server) createProfile(ctx *gin.Context) {
 	var req createProfileRequest
@@ -60,6 +78,23 @@ func (server *Server) createProfile(ctx *gin.Context) {
 		return
 	}
 
+	rsp := profileResponse{
+		ID:             profile.ID,
+		UserID:         profile.UserID,
+		Name:           profile.Name,
+		Headline:       profile.Headline.String, // Ambil String-nya saja
+		Role:           profile.Role.String,
+		BioShort:       profile.BioShort.String,
+		BioLong:        profile.BioLong.String,
+		Location:       profile.Location.String,
+		IsHireable:     profile.IsHireable.Bool,
+		Avatar:         profile.Avatar.String,
+		CvFiles:        profile.CvFiles.String,
+		HeroImageCodes: profile.HeroImageCodes.String,
+		Socials:        profile.Socials.RawMessage,
+		CreatedAt:      profile.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      profile.UpdatedAt.Format(time.RFC3339),
+	}
 	//	Sukses
-	ctx.JSON(http.StatusOK, profile)
+	ctx.JSON(http.StatusOK, rsp)
 }
