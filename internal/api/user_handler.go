@@ -4,6 +4,7 @@ import (
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/util"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,7 +55,7 @@ func (server *Server) createUser(ctx *gin.Context) {
 	rsp := userResponse{
 		ID:        user.ID,
 		Email:     user.Email,
-		CreatedAt: user.CreatedAt.Time.String(),
+		CreatedAt: user.CreatedAt.Format(time.RFC3339),
 	}
 
 	ctx.JSON(http.StatusOK, rsp)
