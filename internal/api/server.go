@@ -17,9 +17,6 @@ func NewServer(store *db.Queries) *Server {
 	server := &Server{store: store}
 	router := gin.Default()
 
-	// --> NANTI KITA DAFTARKAN RUTE DISINI <--
-	router.POST("/users", server.createUser)      // Endpoint Register
-	router.POST("/users/login", server.loginUser) // Login (BARU)
 	// RUTE PUBLIC (Siapapun boleh akses)
 	router.POST("/users", server.createUser)
 	router.POST("/users/login", server.loginUser)
@@ -27,6 +24,7 @@ func NewServer(store *db.Queries) *Server {
 	// RUTE PRIVATE (Harus bawa Token)
 	authRoutes := router.Group("/").Use(authMiddleware())
 
+	authRoutes.POST("/profile", server.createProfile)
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
 		userID, _ := ctx.Get("user_id")
