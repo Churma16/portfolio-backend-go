@@ -25,6 +25,7 @@ func NewServer(store *db.Queries) *Server {
 	authRoutes := router.Group("/").Use(authMiddleware())
 
 	authRoutes.POST("/profile", server.createProfile)
+	authRoutes.POST("/upload", server.uploadFile)
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
 		userID, _ := ctx.Get("user_id")
