@@ -22,6 +22,17 @@ type userResponse struct {
 	CreatedAt string `json:"created_at"` // String biar aman formatnya
 }
 
+// createUser is a handler function for creating a new user.
+// It validates the input, hashes the password, saves the user to the database,
+// and returns a response without exposing the password.
+//
+// @param ctx *gin.Context - The Gin context, which contains the HTTP request and response.
+//
+// The function performs the following steps:
+// 1. Validates the input JSON payload.
+// 2. Hashes the user's password.
+// 3. Saves the user to the database using SQLC.
+// 4. Returns a JSON response with the user's ID, email, and creation timestamp.
 func (server *Server) createUser(ctx *gin.Context) {
 	var req createUserRequest
 
