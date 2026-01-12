@@ -18,7 +18,8 @@ func NewServer(store *db.Queries) *Server {
 	router := gin.Default()
 
 	// --> NANTI KITA DAFTARKAN RUTE DISINI <--
-	router.POST("/users", server.createUser) // Endpoint Register
+	router.POST("/users", server.createUser)      // Endpoint Register
+	router.POST("/users/login", server.loginUser) // Login (BARU)
 
 	server.router = router
 	return server

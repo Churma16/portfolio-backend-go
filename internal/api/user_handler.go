@@ -71,3 +71,56 @@ func (server *Server) createUser(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, rsp)
 }
+
+type loginUserRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
+type loginUserResponse struct {
+	AccessToken string       `json:"access_token"`
+	User        userResponse `json:"user"`
+}
+
+func (server *Server) loginUser(ctx *gin.Context) {
+	var req loginUserRequest
+
+	// 1. Validasi Input JSON
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Cari User di Database berdasarkan Email
+	user, err := server.store.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User tidak ditemukan / Salah Password"})
+		return
+	}
+
+	// 3. Cek Password (Bandingkan input vs Hash di DB)
+	err = util.CheckPassword(req.Password, user.Password)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Password Salah"})
+		return
+	}
+
+	// 4. Bikin Token (Berlaku 24 Jam)
+	token, err := util.CreateToken(user.ID, 24*time.Hour)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat token"})
+		return
+	}
+
+	// 5. Kirim Response Token + Data User
+	rsp := loginUserResponse{
+		AccessToken: token,
+		User: userResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt.Format(time.RFC3339),
+		},
+	}
+
+	ctx.JSON(http.StatusOK, rsp)
+}
