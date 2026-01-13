@@ -15,6 +15,29 @@ type createCategoryRequest struct {
 	Slug  string `form:"slug"`
 	Color string `form:"color"`
 }
+type Meta struct {
+	Code    int    `json:"code"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+type CategoryData struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	Color     string `json:"color"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+type SingleCategoryResponse struct {
+	Meta Meta         `json:"meta"`
+	Data CategoryData `json:"data"`
+}
+
+type MultipleCategoriesResponse struct {
+	Meta Meta           `json:"meta"`
+	Data []CategoryData `json:"data"`
+}
 
 func (server *Server) createCategory(ctx *gin.Context) {
 	// Bind JSON request ke struct
@@ -38,7 +61,7 @@ func (server *Server) createCategory(ctx *gin.Context) {
 		return
 	}
 
-	response := categoryResponse(category)
+	response := categoryResponse(category, "Kategori berhasil dibuat")
 	ctx.JSON(http.StatusOK, response)
 }
 
@@ -50,7 +73,7 @@ func (server *Server) showCategories(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, categoriesResponse(categories))
+	ctx.JSON(http.StatusOK, categoriesResponse(categories, "Kategori ditemukan"))
 }
 
 func (server *Server) showCategory(ctx *gin.Context) {
@@ -72,10 +95,9 @@ func (server *Server) showCategory(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, categoryResponse(categories))
+	ctx.JSON(http.StatusOK, categoryResponse(categories, "Kategori ditemukan"))
 }
 
-func categoryResponse(category db.Category) gin.H {
 func (server *Server) deleteCategory(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 
@@ -98,20 +120,41 @@ func (server *Server) deleteCategory(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, categoryResponse(category, "Kategori berhasil dihapus"))
 
 }
+
+func mapCategoryToData(category db.Category) CategoryData {
+	return CategoryData{
+		ID:        category.ID,
+		Name:      category.Name,
+		Slug:      category.Slug,
+		Color:     category.Color.String,
+		CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05")}
+}
+
+func categoryResponse(category db.Category, message string) gin.H {
 	return gin.H{
-		"id":         category.ID,
-		"name":       category.Name,
-		"slug":       category.Slug,
-		"color":      category.Color.String,
-		"created_at": category.CreatedAt,
-		"updated_at": category.UpdatedAt,
+		"meta": gin.H{
+			"code":    200,
+			"status":  "success",
+			"message": message,
+		},
+		"data": mapCategoryToData(category),
 	}
 }
 
-func categoriesResponse(categories []db.Category) []gin.H {
-	responses := make([]gin.H, len(categories))
+func categoriesResponse(categories []db.Category, message string) gin.H {
+	data := make([]CategoryData, len(categories))
 	for i, category := range categories {
-		responses[i] = categoryResponse(category)
+		data[i] = mapCategoryToData(category)
 	}
-	return responses
+
+	return gin.H{
+		"meta": gin.H{
+			"code":    200,
+			"status":  "success",
+			"message": message,
+			"count":   len(categories),
+		},
+		"data": data,
+	}
 }
