@@ -113,21 +113,13 @@ func (server *Server) updateCategory(ctx *gin.Context) {
 	}
 
 	idParam := ctx.Param("id")
-
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
-	arg := db.UpdateCategoryParams{
-		ID:    id,
-		Name:  req.Name,
-		Slug:  slug.Make(req.Name),
-		Color: convertToNullString(req.Color),
-	}
-
-	category, err := server.store.UpdateCategory(ctx, arg)
+	existingCategory, err := server.store.GetCategory(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
@@ -137,8 +129,27 @@ func (server *Server) updateCategory(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, categoryResponse(category, "Kategori berhasil diperbarui"))
+	arg := db.UpdateCategoryParams{
+		ID:    id,
+		Color: convertToNullString(req.Color),
+	}
 
+	if req.Name != existingCategory.Name {
+		arg.Name = req.Name
+		arg.Slug = slug.Make(req.Name)
+	} else {
+		arg.Name = existingCategory.Name
+		arg.Slug = existingCategory.Slug
+	}
+
+	// 4. Eksekusi Update
+	category, err := server.store.UpdateCategory(ctx, arg)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, categoryResponse(category, "Kategori berhasil diperbarui"))
 }
 
 func (server *Server) deleteCategory(ctx *gin.Context) {

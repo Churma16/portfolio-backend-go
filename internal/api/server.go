@@ -35,7 +35,7 @@ func NewServer(store *db.Queries) *Server {
 	router.GET("/categories", server.showCategories)
 	router.GET("/categories/:id", server.showCategory)
 	authRoutes.POST("/categories", server.createCategory)
-	authRoutes.PUT("/categories/:id", server.createCategory)
+	authRoutes.PUT("/categories/:id", server.updateCategory)
 	authRoutes.DELETE("/categories/:id", server.deleteCategory)
 
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
