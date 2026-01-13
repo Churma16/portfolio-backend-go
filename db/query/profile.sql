@@ -10,7 +10,16 @@ WHERE user_id = $1 LIMIT 1;
 
 -- name: UpdateProfile :one
 UPDATE profiles
-SET name      = $2,
-    headline  = $3,
-    bio_short = $4
+SET name             = $2,
+    headline         = $3,
+    role             = $4,
+    bio_short        = $5,
+    bio_long         = $6,
+    location         = $7,
+    is_hireable      = $8,
+    avatar           = $9,
+    cv_files         = $10,
+    hero_image_codes = $11,
+    socials          = $12,
+    updated_at       = now()
 WHERE user_id = $1 RETURNING *;
