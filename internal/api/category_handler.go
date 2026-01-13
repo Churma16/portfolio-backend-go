@@ -76,6 +76,28 @@ func (server *Server) showCategory(ctx *gin.Context) {
 }
 
 func categoryResponse(category db.Category) gin.H {
+func (server *Server) deleteCategory(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	category, err := server.store.DeleteCategory(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, categoryResponse(category, "Kategori berhasil dihapus"))
+
+}
 	return gin.H{
 		"id":         category.ID,
 		"name":       category.Name,
