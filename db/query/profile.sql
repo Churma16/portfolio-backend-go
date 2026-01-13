@@ -25,6 +25,6 @@ SET name             = $2,
 WHERE user_id = $1 RETURNING *;
 
 -- name: DeleteProfile :one
-delete from profiles
-where user_id = $1
-returning *;
+delete
+from profiles
+where user_id = $1 returning *;
