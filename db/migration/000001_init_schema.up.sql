@@ -15,7 +15,9 @@ CREATE TABLE categories
     name       VARCHAR     NOT NULL,
     slug       VARCHAR     NOT NULL UNIQUE,
     color      VARCHAR,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
 );
 
 create table messages
@@ -25,7 +27,9 @@ create table messages
     email      VARCHAR     NOT NULL,
     content    TEXT        NOT NULL,
     is_read    BOOLEAN              DEFAULT false,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
 );
 
 CREATE TABLE tech_stacks
@@ -35,7 +39,9 @@ CREATE TABLE tech_stacks
     slug         VARCHAR     NOT NULL UNIQUE,
     icon         VARCHAR,
     column_order SERIAL      NOT NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+
 );
 
 -- (BARU) Tabel Tags dengan relasi ke Category
@@ -46,7 +52,9 @@ CREATE TABLE tags
     slug        VARCHAR     NOT NULL UNIQUE,
     color       VARCHAR,
     category_id BIGINT      REFERENCES categories (id) ON DELETE SET NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+
 );
 
 -- 3. PROFILES
@@ -80,7 +88,9 @@ CREATE TABLE work_experiences
     end_date    VARCHAR,
     is_current  BOOLEAN              DEFAULT false,
     description TEXT,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+
 );
 
 -- 5. PROJECTS
