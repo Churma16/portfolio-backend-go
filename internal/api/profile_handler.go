@@ -147,6 +147,33 @@ func (server *Server) createProfile(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, rsp)
 }
 
+func (server *Server) getProfile(ctx *gin.Context) {
+	// 1. Ambil User ID.
+	// Kita bisa ambil dari Token (kalau rute Private /me)
+	// ATAU ambil dari URL parameter (kalau rute Public /:user_id)
+
+	// Skenario: PUBLIC ACCESS (via URL param id)
+	// Contoh: GET /profile/1
+	var req struct {
+		ID int64 `uri:"user_id" binding:"required,min=1"`
+	}
+
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Panggil Database
+	profile, err := server.store.GetProfileByUserId(ctx, req.ID)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Profile tidak ditemukan"})
+		return
+	}
+
+	// 3. Mapping ke JSON & Return
+	ctx.JSON(http.StatusOK, newProfileResponse(profile))
+}
+
 func (server *Server) updateProfile(ctx *gin.Context) {
 	var req createProfileRequest // Kita pakai struct yang sama dengan Create (Reuse)
 
@@ -225,4 +252,18 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, updatedProfile)
+func (server *Server) deleteProfile(ctx *gin.Context) {
+	// 1. Ambil ID User dari Token (Wajib Login!)
+	userID := ctx.MustGet("user_id").(int64)
+
+	// 2. Eksekusi Hapus
+	_, err := server.store.DeleteProfile(ctx, userID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. Response Sukses
+	ctx.JSON(http.StatusOK, gin.H{"message": "Profile berhasil dihapus"})
+}
 }
