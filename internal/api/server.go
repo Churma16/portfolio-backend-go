@@ -20,12 +20,16 @@ func NewServer(store *db.Queries) *Server {
 	// RUTE PUBLIC (Siapapun boleh akses)
 	router.POST("/users", server.createUser)
 	router.POST("/users/login", server.loginUser)
+	router.GET("/profile/:user_id", server.getProfile)
 
 	// RUTE PRIVATE (Harus bawa Token)
 	authRoutes := router.Group("/").Use(authMiddleware())
 
 	authRoutes.POST("/profile", server.createProfile)
+	authRoutes.PUT("/profile", server.updateProfile)
 	authRoutes.POST("/upload", server.uploadFile)
+	authRoutes.DELETE("/profile", server.deleteProfile)
+
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
 		userID, _ := ctx.Get("user_id")
