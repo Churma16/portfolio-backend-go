@@ -23,3 +23,8 @@ SET name             = $2,
     socials          = $12,
     updated_at       = now()
 WHERE user_id = $1 RETURNING *;
+
+-- name: DeleteProfile :one
+delete from profiles
+where user_id = $1
+returning *;
