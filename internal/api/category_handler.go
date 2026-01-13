@@ -40,6 +40,19 @@ func (server *Server) createCategory(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
+func (server *Server) showCategories(ctx *gin.Context) {
+	{
+	}
+	categories, err := server.store.GetCategories(ctx)
+
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Kategori tidak ditemukan"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, categoriesResponse(categories))
+}
+
 func categoryResponse(category db.Category) gin.H {
 	return gin.H{
 		"id":         category.ID,
@@ -49,4 +62,12 @@ func categoryResponse(category db.Category) gin.H {
 		"created_at": category.CreatedAt,
 		"updated_at": category.UpdatedAt,
 	}
+}
+
+func categoriesResponse(categories []db.Category) []gin.H {
+	responses := make([]gin.H, len(categories))
+	for i, category := range categories {
+		responses[i] = categoryResponse(category)
+	}
+	return responses
 }
