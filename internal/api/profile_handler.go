@@ -126,24 +126,8 @@ func (server *Server) createProfile(ctx *gin.Context) {
 		return
 	}
 
-	rsp := profileResponse{
-		ID:             profile.ID,
-		UserID:         profile.UserID,
-		Name:           profile.Name,
-		Headline:       profile.Headline.String, // Ambil String-nya saja
-		Role:           profile.Role.String,
-		BioShort:       profile.BioShort.String,
-		BioLong:        profile.BioLong.String,
-		Location:       profile.Location.String,
-		IsHireable:     profile.IsHireable.Bool,
-		Avatar:         profile.Avatar.String,
-		CvFiles:        profile.CvFiles.String,
-		HeroImageCodes: profile.HeroImageCodes.String,
-		Socials:        profile.Socials.RawMessage,
-		CreatedAt:      profile.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      profile.UpdatedAt.Format(time.RFC3339),
-	}
 	//	Sukses
+	rsp := newProfileResponse(profile)
 	ctx.JSON(http.StatusOK, rsp)
 }
 
@@ -251,7 +235,10 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, updatedProfile)
+	rsp := newProfileResponse(updatedProfile)
+	ctx.JSON(http.StatusOK, rsp)
+}
+
 func (server *Server) deleteProfile(ctx *gin.Context) {
 	// 1. Ambil ID User dari Token (Wajib Login!)
 	userID := ctx.MustGet("user_id").(int64)
@@ -266,4 +253,23 @@ func (server *Server) deleteProfile(ctx *gin.Context) {
 	// 3. Response Sukses
 	ctx.JSON(http.StatusOK, gin.H{"message": "Profile berhasil dihapus"})
 }
+
+func newProfileResponse(profile db.Profile) profileResponse {
+	return profileResponse{
+		ID:             profile.ID,
+		UserID:         profile.UserID,
+		Name:           profile.Name,
+		Headline:       profile.Headline.String,
+		Role:           profile.Role.String,
+		BioShort:       profile.BioShort.String,
+		BioLong:        profile.BioLong.String,
+		Location:       profile.Location.String,
+		IsHireable:     profile.IsHireable.Bool,
+		Avatar:         profile.Avatar.String,
+		CvFiles:        profile.CvFiles.String,
+		HeroImageCodes: profile.HeroImageCodes.String,
+		Socials:        profile.Socials.RawMessage,
+		CreatedAt:      profile.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      profile.UpdatedAt.Format(time.RFC3339),
+	}
 }
