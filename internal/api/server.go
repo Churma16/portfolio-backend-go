@@ -33,6 +33,7 @@ func NewServer(store *db.Queries) *Server {
 
 	// Rute Category
 	authRoutes.GET("/categories", server.showCategories)
+	authRoutes.GET("/categories/:id", server.showCategory)
 	authRoutes.POST("/categories", server.createCategory)
 
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)

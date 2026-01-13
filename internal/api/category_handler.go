@@ -1,8 +1,10 @@
 package api
 
 import (
+	"database/sql"
 	db "go-portfolio-api/db/sqlc"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
@@ -41,16 +43,36 @@ func (server *Server) createCategory(ctx *gin.Context) {
 }
 
 func (server *Server) showCategories(ctx *gin.Context) {
-	{
-	}
-	categories, err := server.store.GetCategories(ctx)
 
+	categories, err := server.store.GetCategories(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Kategori tidak ditemukan"})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, categoriesResponse(categories))
+}
+
+func (server *Server) showCategory(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	categories, err := server.store.GetCategory(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, categoryResponse(categories))
 }
 
 func categoryResponse(category db.Category) gin.H {
