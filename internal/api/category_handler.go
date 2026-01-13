@@ -15,6 +15,12 @@ type createCategoryRequest struct {
 	Slug  string `form:"slug"`
 	Color string `form:"color"`
 }
+type updateCategoryRequest struct {
+	Name  string `form:"name" binding:"required"`
+	Slug  string `form:"slug"`
+	Color string `form:"color"`
+}
+
 type Meta struct {
 	Code    int    `json:"code"`
 	Status  string `json:"status"`
@@ -96,6 +102,43 @@ func (server *Server) showCategory(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, categoryResponse(categories, "Kategori ditemukan"))
+}
+
+func (server *Server) updateCategory(ctx *gin.Context) {
+	var req updateCategoryRequest
+
+	if err := ctx.ShouldBind(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	idParam := ctx.Param("id")
+
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	arg := db.UpdateCategoryParams{
+		ID:    id,
+		Name:  req.Name,
+		Slug:  slug.Make(req.Name),
+		Color: convertToNullString(req.Color),
+	}
+
+	category, err := server.store.UpdateCategory(ctx, arg)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, categoryResponse(category, "Kategori berhasil diperbarui"))
+
 }
 
 func (server *Server) deleteCategory(ctx *gin.Context) {
