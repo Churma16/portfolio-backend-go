@@ -146,3 +146,83 @@ func (server *Server) createProfile(ctx *gin.Context) {
 	//	Sukses
 	ctx.JSON(http.StatusOK, rsp)
 }
+
+func (server *Server) updateProfile(ctx *gin.Context) {
+	var req createProfileRequest // Kita pakai struct yang sama dengan Create (Reuse)
+
+	// 1. Bind Data Form
+	if err := ctx.ShouldBind(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := ctx.MustGet("user_id").(int64)
+
+	// 2. AMBIL DATA LAMA (PENTING!)
+	// Kita butuh ini untuk tahu "Avatar Lama" kalau user nggak upload baru
+	oldProfile, err := server.store.GetProfileByUserId(ctx, userID)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Profile belum dibuat, silahkan Create dulu"})
+		return
+	}
+
+	// 3. LOGIKA AVATAR (Ganti atau Tetap?)
+	finalAvatar := oldProfile.Avatar.String // Default: Pakai yang lama
+	fileAvatar, err := ctx.FormFile("avatar")
+	folderNameAvatar := "avatar"
+	if err == nil {
+		// User upload file baru -> Ganti!
+		url, errSave := saveUploadedFile(ctx, fileAvatar, folderNameAvatar)
+		if errSave != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload avatar baru"})
+			return
+		}
+		finalAvatar = url
+	}
+
+	// 4. LOGIKA CV (Ganti atau Tetap?)
+	finalCV := oldProfile.CvFiles.String // Default: Pakai yang lama
+	fileCV, err := ctx.FormFile("cv_files")
+	folderNameCv := "cv_files"
+	if err == nil {
+		url, errSave := saveUploadedFile(ctx, fileCV, folderNameCv)
+		if errSave != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload CV baru"})
+			return
+		}
+		finalCV = url
+	}
+
+	// 5. Handle Socials (Sama kayak Create)
+	var socialsRaw json.RawMessage
+	if req.Socials != "" {
+		socialsRaw = json.RawMessage(req.Socials)
+	} else {
+		// Kalau user kirim string kosong, kita pakai socials yang lama
+		socialsRaw = oldProfile.Socials.RawMessage
+	}
+
+	// 6. Eksekusi Update ke DB
+	arg := db.UpdateProfileParams{
+		UserID:         userID,
+		Name:           req.Name,
+		Headline:       convertToNullString(req.Headline),
+		Role:           convertToNullString(req.Role),
+		BioShort:       convertToNullString(req.BioShort),
+		BioLong:        convertToNullString(req.BioLong),
+		Location:       convertToNullString(req.Location),
+		IsHireable:     convertToNullBool(req.IsHireable),
+		Avatar:         convertToNullString(finalAvatar), // <-- Pakai variabel final
+		CvFiles:        convertToNullString(finalCV),     // <-- Pakai variabel final
+		HeroImageCodes: convertToNullString(req.HeroImageCodes),
+		Socials:        pqtype.NullRawMessage{RawMessage: socialsRaw, Valid: len(socialsRaw) > 0},
+	}
+
+	updatedProfile, err := server.store.UpdateProfile(ctx, arg)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, updatedProfile)
+}
