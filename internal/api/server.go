@@ -32,6 +32,7 @@ func NewServer(store *db.Queries) *Server {
 	authRoutes.DELETE("/profiles", server.deleteProfile)
 
 	// Rute Category
+	authRoutes.GET("/categories", server.showCategories)
 	authRoutes.POST("/categories", server.createCategory)
 
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
