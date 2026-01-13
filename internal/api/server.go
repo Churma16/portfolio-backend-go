@@ -34,6 +34,7 @@ func NewServer(store *db.Queries) *Server {
 	// Rute Category
 	authRoutes.GET("/categories", server.showCategories)
 	authRoutes.GET("/categories/:id", server.showCategory)
+	router.GET("/categories", server.showCategories)
 	authRoutes.POST("/categories", server.createCategory)
 	authRoutes.DELETE("/categories/:id", server.deleteCategory)
 
