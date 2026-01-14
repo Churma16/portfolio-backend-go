@@ -13,28 +13,32 @@ type Store struct {
 }
 
 // NewStore membuat instance Store baru
-func NewStore(db *sql.DB) *Store {
+func NewStore(database *sql.DB) *Store {
 	return &Store{
-		db:      db,
-		Queries: New(db),
+		db:      database,
+		Queries: New(database),
 	}
 }
 
 // execTx menjalankan fungsi di dalam database transaction
-func (store *Store) ExecTx(ctx context.Context, fn func(*Queries) error) error {
-	tx, err := store.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
+func (store *Store) ExecTx(context context.Context, transactionFunc func(*Queries) error) error {
+	// Begin a new transaction
+	transaction, transactionError := store.db.BeginTx(context, nil)
+	if transactionError != nil {
+		return transactionError
 	}
 
-	q := New(tx)
-	err = fn(q)
-	if err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return fmt.Errorf("tx err: %v, rb err: %v", err, rbErr)
+	queries := New(transaction)
+	executionError := transactionFunc(queries)
+	if executionError != nil {
+		// Rollback the transaction in case of an error
+		rollbackError := transaction.Rollback()
+		if rollbackError != nil {
+			return fmt.Errorf("transaction error: %v, rollback error: %v", executionError, rollbackError)
 		}
-		return err
+		return executionError
 	}
 
-	return tx.Commit()
+	// Commit the transaction
+	return transaction.Commit()
 }
