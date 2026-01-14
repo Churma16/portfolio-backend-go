@@ -14,7 +14,6 @@ import (
 
 type createProjectRequest struct {
 	Title       string `form:"title" binding:"required"`
-	Thumbnail   string `form:"thumbnail"`
 	Content     string `form:"content"`
 	DemoUrl     string `form:"demo_url"`
 	RepoUrl     string `form:"repo_url"`
@@ -47,13 +46,13 @@ type projectData struct {
 }
 
 func (server *Server) createProject(ctx *gin.Context) {
+	//  Handle Upload Thumbnail
 	var req createProjectRequest
 	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	//  Handle Upload Thumbnail
 	var thumbnailURL string
 	file, err := ctx.FormFile("thumbnail")
 	folderName := "projects"
