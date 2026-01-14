@@ -156,65 +156,111 @@ func (server *Server) GetProjects(ctx *gin.Context) {
 	// Contoh: /projects?with=category,techStacks,tags
 	withParam := ctx.Query("with")
 
-	// 2. Ambil Semua Project dari Database
-	projects, err := server.store.GetProjects(ctx)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+func (server *Server) showProjects(context *gin.Context) {
+	queryParam := context.Query("with")
+
+	// 1. Retrieve Projects
+	projects, retrievalError := server.store.GetProjects(context)
+	if retrievalError != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": retrievalError.Error()})
 		return
 	}
 
-	// 3. Siapkan Slice untuk Response Akhir
-	var responseData []projectData
+	// 2. Collect IDs
+	// Collect project IDs and category IDs for batch queries
+	var projectIDList []int32
+	var categoryIDList []int32
 
-	// 4. LOOPING (Manual Eager Loading)
-	for _, p := range projects {
-		// Ubah dari db.Project ke struct JSON (relasi masih nil)
-		item := projectResponse(p)
+	for _, project := range projects {
+		projectIDList = append(projectIDList, int32(project.ID))
+		if project.CategoryID.Valid {
+			categoryIDList = append(categoryIDList, int32(project.CategoryID.Int64))
+		}
+	}
 
-		// --- LOGIKA "WITH" CATEGORY ---
-		if strings.Contains(withParam, "category") {
-			category, err := server.store.GetCategory(ctx, p.CategoryID.Int64)
-			if err == nil {
-				item.Category = &category // Tempelkan (Address of category)
+	// 3. Prepare Maps for Temporary Storage
+	// These maps allow quick data lookup (O(1)) without additional looping
+	techStackLookup := make(map[int64][]TechStackData) // Key: ProjectID, Value: List of TechStacks
+	tagLookup := make(map[int64][]TagData)             // Key: ProjectID, Value: List of Tags
+	categoryLookup := make(map[int64]*db.Category)     // Key: CategoryID, Value: Category
+
+	// --- Batch Query: Categories ---
+	if strings.Contains(queryParam, "category") && len(categoryIDList) > 0 {
+		categories, categoryError := server.store.GetCategoriesByIDs(context, categoryIDList)
+		if categoryError == nil {
+			for _, category := range categories {
+				categoryCopy := category // Copy variable to ensure pointer safety
+				categoryLookup[category.ID] = &categoryCopy
 			}
 		}
+	}
 
-		// --- LOGIKA "WITH" TECH STACKS ---
-		if strings.Contains(withParam, "techStacks") {
-			// Ambil data dari tabel pivot
-			techStacksDB, err := server.store.GetTechStacksByProjectID(ctx, p.ID)
-			if err == nil {
-				// Convert []db.TechStack -> []TechStackData
-				var tsData []TechStackData
-				for _, t := range techStacksDB {
-					// Panggil helper yang ada di tech_stack_handler.go
-					tsData = append(tsData, techStackResponse(t))
+	// --- Batch Query: Tech Stacks ---
+	if strings.Contains(queryParam, "techStacks") && len(projectIDList) > 0 {
+		techStackResults, techStackError := server.store.GetTechStacksByProjectID(context, projectIDList)
+		if techStackError == nil {
+			for _, techStackRow := range techStackResults {
+				// Convert row to response struct
+				techStackData := TechStackData{
+					ID:   techStackRow.ID,
+					Name: techStackRow.Name,
+					Slug: techStackRow.Slug,
+					Icon: techStackRow.Icon.String,
+					// Add other fields as needed
 				}
 				item.TechStacks = tsData
 			}
 		}
-
-		// --- LOGIKA "WITH" TAGS ---
-		if strings.Contains(withParam, "tags") {
-			// Ambil data dari tabel pivot
-			tagsDB, err := server.store.GetTagsByProjectID(ctx, p.ID)
-			if err == nil {
-				// Convert []db.Tag -> []TagData
-				var tData []TagData
-				for _, t := range tagsDB {
-					// Panggil helper yang ada di tag_handler.go
-					tData = append(tData, tagResponse(t))
-				}
-				item.Tags = tData
+				// Add to map based on Project ID
+				techStackLookup[techStackRow.ProjectID] = append(techStackLookup[techStackRow.ProjectID], techStackData)
 			}
 		}
-
-		responseData = append(responseData, item)
 	}
 
-	// 5. Return JSON
-	meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved", len(responseData))
-	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, responseData))
+	// --- Batch Query: Tags ---
+	if strings.Contains(queryParam, "tags") && len(projectIDList) > 0 {
+		tagResults, tagError := server.store.GetTagsByProjectID(context, projectIDList)
+		if tagError == nil {
+			for _, tagRow := range tagResults {
+				tagData := TagData{
+					ID:    tagRow.ID,
+					Name:  tagRow.Name,
+					Slug:  tagRow.Slug,
+					Color: tagRow.Color.String,
+					// Add other fields as needed
+				}
+				tagLookup[tagRow.ProjectID] = append(tagLookup[tagRow.ProjectID], tagData)
+			}
+		}
+	}
+
+	// 4. Assemble Final Response
+	var projectResponseList []projectData
+
+	for _, project := range projects {
+		projectItem := projectResponse(project)
+
+		// Attach Category (from map)
+		if category, exists := categoryLookup[project.CategoryID.Int64]; exists {
+			projectItem.Category = category
+		}
+
+		// Attach TechStacks (from map)
+		if techStacks, exists := techStackLookup[project.ID]; exists {
+			projectItem.TechStacks = techStacks
+		}
+
+		// Attach Tags (from map)
+		if tags, exists := tagLookup[project.ID]; exists {
+			projectItem.Tags = tags
+		}
+
+		projectResponseList = append(projectResponseList, projectItem)
+	}
+
+	// 5. Return JSON Response
+	responseMetadata := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved", len(projectResponseList))
+	context.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMetadata, projectResponseList))
 }
 
 func projectResponse(project db.Project) projectData {
