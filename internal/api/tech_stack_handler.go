@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"errors"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
 	"net/http"
@@ -19,11 +18,9 @@ type CreateTechStackRequest struct {
 }
 
 type updateTechStackRequest struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Icon        string `json:"icon"`
-	ColumnOrder int32  `json:"column_order"`
+	Name string `form:"name" binding:"required"`
+	Slug string `form:"slug"`
+	Icon string `form:"icon"`
 }
 
 type TechStackData struct {
@@ -97,7 +94,7 @@ func (server *Server) showTechStack(ctx *gin.Context) {
 
 func (server *Server) updateTechStack(ctx *gin.Context) {
 	var req updateTechStackRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
+	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -111,8 +108,8 @@ func (server *Server) updateTechStack(ctx *gin.Context) {
 
 	existingTechStack, err := server.store.GetTechStack(ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Tech Stack not found"})
 		} else {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
@@ -120,7 +117,7 @@ func (server *Server) updateTechStack(ctx *gin.Context) {
 	}
 
 	arguments := db.UpdateTechStackParams{
-		ID:   req.ID,
+		ID:   id,
 		Name: req.Name,
 		Icon: convertToNullString(req.Icon),
 	}
