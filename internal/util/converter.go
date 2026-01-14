@@ -29,7 +29,7 @@ func GenerateSlug(input string) string {
 	return slug.Make(input)
 }
 
-func parseStringToIntArray(input string) ([]int64, error) {
+func ParseStringToIntArray(input string) ([]int64, error) {
 	if input == "" {
 		return nil, nil
 	}
