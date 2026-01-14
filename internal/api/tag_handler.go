@@ -87,7 +87,7 @@ func (server *Server) showTag(ctx *gin.Context) {
 		return
 	}
 
-	tag, err := server.store.GetTag(ctx, id)
+	tags, err := server.store.GetTag(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
@@ -96,7 +96,7 @@ func (server *Server) showTag(ctx *gin.Context) {
 		}
 		return
 	}
-	data := tagResponse(tag)
+	data := tagResponse(tags)
 	meta := response.NewMeta(http.StatusOK, "success", "Tag ditemukan")
 	resp := response.NewSingleDataResponse(meta, data)
 	ctx.JSON(http.StatusOK, resp)
@@ -191,7 +191,7 @@ func tagResponse(tag db.Tag) TagData {
 		Color:      tag.Color.String,
 		CategoryId: tag.CategoryID.Int64,
 		CreatedAt:  tag.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:  tag.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:  tag.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 }
 
