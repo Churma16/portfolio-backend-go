@@ -2,96 +2,58 @@ package api
 
 import (
 	"database/sql"
-	db "go-portfolio-api/db/sqlc"
 	"net/http"
 	"strconv"
 
+	"go-portfolio-api/internal/dto"
+	"go-portfolio-api/internal/mapper"
+	"go-portfolio-api/internal/response"
+
 	"github.com/gin-gonic/gin"
-	"github.com/gosimple/slug"
 )
 
-type createCategoryRequest struct {
-	Name  string `form:"name" binding:"required"`
-	Slug  string `form:"slug"`
-	Color string `form:"color"`
-}
-type updateCategoryRequest struct {
-	Name  string `form:"name" binding:"required"`
-	Slug  string `form:"slug"`
-	Color string `form:"color"`
-}
-
-type Meta struct {
-	Code    int    `json:"code"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-type CategoryData struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Slug      string `json:"slug"`
-	Color     string `json:"color"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-}
-
-type SingleCategoryResponse struct {
-	Meta Meta         `json:"meta"`
-	Data CategoryData `json:"data"`
-}
-
-type MultipleCategoriesResponse struct {
-	Meta Meta           `json:"meta"`
-	Data []CategoryData `json:"data"`
-}
-
 func (server *Server) createCategory(ctx *gin.Context) {
-	// Bind JSON request ke struct
-	var req createCategoryRequest
+	var req dto.CreateCategoryRequest
 
 	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	// Panggil method CreateCategory di db/sqlc
-	arg := db.CreateCategoryParams{
-		Name:  req.Name,
-		Slug:  slug.Make(req.Name),
-		Color: convertToNullString(req.Color),
-	}
 
-	// Execute query
-	category, err := server.store.CreateCategory(ctx, arg)
+	category, err := server.categoryService.CreateCategory(ctx, req)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	response := categoryResponse(category, "Kategori berhasil dibuat")
-	ctx.JSON(http.StatusOK, response)
+	data := mapper.MapCategoryToData(category)
+	meta := response.NewMeta(http.StatusOK, "success", "Kategori berhasil dibuat")
+	resp := response.NewSingleDataResponse(meta, data)
+	ctx.JSON(http.StatusOK, resp)
 }
 
 func (server *Server) showCategories(ctx *gin.Context) {
-
-	categories, err := server.store.GetCategories(ctx)
+	categories, err := server.categoryService.GetCategories(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Kategori tidak ditemukan"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, categoriesResponse(categories, "Kategori ditemukan"))
+	data := mapper.MapCategoriesToData(categories)
+	meta := response.NewMetaWithCount(http.StatusOK, "success", "Kategori ditemukan", len(categories))
+	resp := response.NewMultipleDataResponse(meta, data)
+	ctx.JSON(http.StatusOK, resp)
 }
 
 func (server *Server) showCategory(ctx *gin.Context) {
 	idParam := ctx.Param("id")
-
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
-	categories, err := server.store.GetCategory(ctx, id)
+	category, err := server.categoryService.GetCategory(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
@@ -101,11 +63,14 @@ func (server *Server) showCategory(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, categoryResponse(categories, "Kategori ditemukan"))
+	data := mapper.MapCategoryToData(category)
+	meta := response.NewMeta(http.StatusOK, "success", "Kategori ditemukan")
+	resp := response.NewSingleDataResponse(meta, data)
+	ctx.JSON(http.StatusOK, resp)
 }
 
 func (server *Server) updateCategory(ctx *gin.Context) {
-	var req updateCategoryRequest
+	var req dto.UpdateCategoryRequest
 
 	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -119,37 +84,20 @@ func (server *Server) updateCategory(ctx *gin.Context) {
 		return
 	}
 
-	existingCategory, err := server.store.GetCategory(ctx, id)
+	category, err := server.categoryService.UpdateCategory(ctx, id, req)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
 		return
 	}
 
-	arg := db.UpdateCategoryParams{
-		ID:    id,
-		Color: convertToNullString(req.Color),
-	}
-
-	if req.Name != existingCategory.Name {
-		arg.Name = req.Name
-		arg.Slug = slug.Make(req.Name)
-	} else {
-		arg.Name = existingCategory.Name
-		arg.Slug = existingCategory.Slug
-	}
-
-	// 4. Eksekusi Update
-	category, err := server.store.UpdateCategory(ctx, arg)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, categoryResponse(category, "Kategori berhasil diperbarui"))
+	data := mapper.MapCategoryToData(category)
+	meta := response.NewMeta(http.StatusOK, "success", "Kategori berhasil diperbarui")
+	resp := response.NewSingleDataResponse(meta, data)
+	ctx.JSON(http.StatusOK, resp)
 }
 
 func (server *Server) deleteCategory(ctx *gin.Context) {
@@ -161,7 +109,7 @@ func (server *Server) deleteCategory(ctx *gin.Context) {
 		return
 	}
 
-	category, err := server.store.DeleteCategory(ctx, id)
+	category, err := server.categoryService.DeleteCategory(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
@@ -171,44 +119,8 @@ func (server *Server) deleteCategory(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, categoryResponse(category, "Kategori berhasil dihapus"))
-
-}
-
-func mapCategoryToData(category db.Category) CategoryData {
-	return CategoryData{
-		ID:        category.ID,
-		Name:      category.Name,
-		Slug:      category.Slug,
-		Color:     category.Color.String,
-		CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05")}
-}
-
-func categoryResponse(category db.Category, message string) gin.H {
-	return gin.H{
-		"meta": gin.H{
-			"code":    200,
-			"status":  "success",
-			"message": message,
-		},
-		"data": mapCategoryToData(category),
-	}
-}
-
-func categoriesResponse(categories []db.Category, message string) gin.H {
-	data := make([]CategoryData, len(categories))
-	for i, category := range categories {
-		data[i] = mapCategoryToData(category)
-	}
-
-	return gin.H{
-		"meta": gin.H{
-			"code":    200,
-			"status":  "success",
-			"message": message,
-			"count":   len(categories),
-		},
-		"data": data,
-	}
+	data := mapper.MapCategoryToData(category)
+	meta := response.NewMeta(http.StatusOK, "success", "Kategori berhasil dihapus")
+	resp := response.NewSingleDataResponse(meta, data)
+	ctx.JSON(http.StatusOK, resp)
 }
