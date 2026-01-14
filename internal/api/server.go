@@ -57,6 +57,9 @@ func NewServer(store *db.Store) *Server {
 	authRoutes.PUT("/tech-stacks/:id", server.updateTechStack)
 	authRoutes.DELETE("/tech-stacks/:id", server.deleteTechStack)
 
+	// Rute Project
+	authRoutes.POST("/projects", server.createProject)
+
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
 		userID, _ := ctx.Get("user_id")
