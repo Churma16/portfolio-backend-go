@@ -9,24 +9,24 @@ import (
 )
 
 // ConvertToNullString converts a string to sql.NullString
-func ConvertToNullString(val string) sql.NullString {
+func ConvertToNullString(input string) sql.NullString {
 	return sql.NullString{
-		String: val,
-		Valid:  val != "",
+		String: input,
+		Valid:  input != "",
 	}
 }
 
 // ConvertToNullBool converts a bool to sql.NullBool
-func ConvertToNullBool(val bool) sql.NullBool {
+func ConvertToNullBool(input bool) sql.NullBool {
 	return sql.NullBool{
-		Bool:  val,
+		Bool:  input,
 		Valid: true,
 	}
 }
 
 // GenerateSlug generates a URL-friendly slug from a string
-func GenerateSlug(name string) string {
-	return slug.Make(name)
+func GenerateSlug(input string) string {
+	return slug.Make(input)
 }
 
 func parseStringToIntArray(input string) ([]int64, error) {
@@ -37,13 +37,13 @@ func parseStringToIntArray(input string) ([]int64, error) {
 	stringParts := strings.Split(input, ",")
 	var intArray []int64
 
-	for _, part := range stringParts {
-		trimmedPart := strings.TrimSpace(part)
-		parsedInt, err := strconv.ParseInt(trimmedPart, 10, 64)
+	for _, stringPart := range stringParts {
+		trimmedString := strings.TrimSpace(stringPart)
+		parsedInteger, err := strconv.ParseInt(trimmedString, 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		intArray = append(intArray, parsedInt)
+		intArray = append(intArray, parsedInteger)
 	}
 
 	return intArray, nil
