@@ -2,29 +2,14 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	db "go-portfolio-api/db/sqlc"
-	"mime/multipart"
+	"go-portfolio-api/internal/util"
 	"net/http"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sqlc-dev/pqtype"
 )
-
-// Helper internal buat simpan file
-func saveUploadedFile(ctx *gin.Context, fileHeader *multipart.FileHeader, folderName string) (string, error) {
-	filename := fmt.Sprintf("%d_%s", time.Now().Unix(), fileHeader.Filename)
-	filename = strings.ReplaceAll(filename, " ", "_")
-	savePath := filepath.Join("storage/"+folderName, filename)
-
-	if err := ctx.SaveUploadedFile(fileHeader, savePath); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("/%s/%s", folderName, filename), nil
-}
 
 // Struct request pakai tag 'form' bukan 'json'
 type createProfileRequest struct {
@@ -75,7 +60,7 @@ func (server *Server) createProfile(ctx *gin.Context) {
 	fileAvatar, err := ctx.FormFile("avatar") // Ambil file dari key 'avatar'
 	folderNameAvatar := "avatar"
 	if err == nil { // Kalau user upload file
-		url, errSave := saveUploadedFile(ctx, fileAvatar, folderNameAvatar)
+		url, errSave := util.SaveUploadedFile(ctx, fileAvatar, folderNameAvatar)
 		if errSave != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload avatar"})
 			return
@@ -89,7 +74,7 @@ func (server *Server) createProfile(ctx *gin.Context) {
 	folderNameCv := "cv_files"
 
 	if err == nil {
-		url, errSave := saveUploadedFile(ctx, fileCV, folderNameCv)
+		url, errSave := util.SaveUploadedFile(ctx, fileCV, folderNameCv)
 		if errSave != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload CV"})
 			return
@@ -183,7 +168,7 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 	folderNameAvatar := "avatar"
 	if err == nil {
 		// User upload file baru -> Ganti!
-		url, errSave := saveUploadedFile(ctx, fileAvatar, folderNameAvatar)
+		url, errSave := util.SaveUploadedFile(ctx, fileAvatar, folderNameAvatar)
 		if errSave != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload avatar baru"})
 			return
@@ -196,7 +181,7 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 	fileCV, err := ctx.FormFile("cv_files")
 	folderNameCv := "cv_files"
 	if err == nil {
-		url, errSave := saveUploadedFile(ctx, fileCV, folderNameCv)
+		url, errSave := util.SaveUploadedFile(ctx, fileCV, folderNameCv)
 		if errSave != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload CV baru"})
 			return
