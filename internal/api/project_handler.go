@@ -46,30 +46,50 @@ type projectData struct {
 }
 
 func (server *Server) createProject(ctx *gin.Context) {
+	println("\n\n========== CREATE PROJECT DEBUG START ==========")
+	println("STEP 1: Checking Content-Type")
+	contentType := ctx.Request.Header.Get("Content-Type")
+	println("  Content-Type:", contentType)
+
 	//  Handle Upload Thumbnail
 	var req createProjectRequest
+	println("STEP 2: Attempting to ShouldBind()")
 	if err := ctx.ShouldBind(&req); err != nil {
+		println("  ERROR BINDING:", err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		println("========== CREATE PROJECT DEBUG END (ERROR BINDING) ==========\n\n")
 		return
 	}
+	println("  ✓ ShouldBind SUCCESS")
+	println("  Parsed title:", req.Title)
 
+	println("STEP 3: Attempting to get thumbnail file")
 	var thumbnailURL string
 	file, err := ctx.FormFile("thumbnail")
 	folderName := "projects"
 	if err == nil {
-		url, errSave := util.SaveUploadedFile(ctx, file, folderName) // Reuse fungsi helper yg kita buat di profile
+		println("  ✓ Thumbnail file found!")
+		println("  Thumbnail filename:", file.Filename)
+		println("  Thumbnail size:", file.Size)
+
+		println("  Calling SaveUploadedFile for thumbnail...")
+		url, errSave := util.SaveUploadedFile(ctx, file, folderName)
 		if errSave != nil {
+			println("  ERROR saving thumbnail:", errSave.Error())
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload thumbnail"})
+			println("========== CREATE PROJECT DEBUG END (THUMBNAIL ERROR) ==========\n\n")
 			return
 		}
 		thumbnailURL = url
+		println("  ✓ Thumbnail saved with URL:", thumbnailURL)
+	} else {
+		println("  ✗ Thumbnail NOT found:", err.Error())
 	}
 
 	techStackIDs, _ := util.ParseStringToIntArray(req.TechStackIDs)
 	tagIDs, _ := util.ParseStringToIntArray(req.TagIDs)
 
 	// 3. TRANSACTION BLOCK (ExecTx)
-	// Kita pakai var 'result' untuk menampung data project yg berhasil dibuat
 	var createdProject db.Project
 	transactionError := server.store.ExecTx(ctx, func(queries *db.Queries) error {
 		var executionError error
@@ -116,12 +136,19 @@ func (server *Server) createProject(ctx *gin.Context) {
 	})
 
 	if transactionError != nil {
+		println("  ERROR in transaction:", transactionError.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": transactionError.Error()})
+		println("========== CREATE PROJECT DEBUG END (TX ERROR) ==========\n\n")
 		return
 	}
 
+	println("STEP 4: Project created successfully")
+	println("  Project ID:", createdProject.ID)
+	println("  Project thumbnail from DB:", createdProject.Thumbnail.String)
+
 	data := projectResponse(createdProject)
 	meta := response.NewMeta(http.StatusOK, "success", "Project created successfully")
+	println("========== CREATE PROJECT DEBUG END (SUCCESS) ==========\n\n")
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
 }
 func (server *Server) GetProjects(ctx *gin.Context) {
