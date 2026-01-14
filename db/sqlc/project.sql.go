@@ -8,6 +8,9 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
+
+	"github.com/lib/pq"
 )
 
 const addTagToProject = `-- name: AddTagToProject :exec
@@ -155,6 +158,41 @@ func (q *Queries) DeleteProjectTechStacks(ctx context.Context, projectID int64) 
 	return err
 }
 
+const getCategoriesByIDs = `-- name: GetCategoriesByIDs :many
+SELECT id, name, slug, color, created_at, updated_at FROM categories
+WHERE id = ANY($1::int[])
+`
+
+func (q *Queries) GetCategoriesByIDs(ctx context.Context, categoryIds []int32) ([]Category, error) {
+	rows, err := q.db.QueryContext(ctx, getCategoriesByIDs, pq.Array(categoryIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Category
+	for rows.Next() {
+		var i Category
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Color,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getProject = `-- name: GetProject :one
 SELECT id, title, slug, thumbnail, content, demo_url, repo_url, is_featured, published_at, column_order, category_id, created_at, updated_at
 FROM projects
@@ -226,22 +264,34 @@ func (q *Queries) GetProjects(ctx context.Context) ([]Project, error) {
 }
 
 const getTagsByProjectID = `-- name: GetTagsByProjectID :many
-SELECT t.id, t.name, t.slug, t.color, t.category_id, t.created_at, t.updated_at
-FROM tags t
-         JOIN project_tags pt ON t.id = pt.tag_id
-WHERE pt.project_id = $1
+SELECT project_tags.project_id, tags.id, tags.name, tags.slug, tags.color, tags.category_id, tags.created_at, tags.updated_at
+FROM tags
+JOIN project_tags ON tags.id = project_tags.tag_id
+WHERE project_tags.project_id = ANY($1::int[])
 `
 
-func (q *Queries) GetTagsByProjectID(ctx context.Context, projectID int64) ([]Tag, error) {
-	rows, err := q.db.QueryContext(ctx, getTagsByProjectID, projectID)
+type GetTagsByProjectIDRow struct {
+	ProjectID  int64          `json:"project_id"`
+	ID         int64          `json:"id"`
+	Name       string         `json:"name"`
+	Slug       string         `json:"slug"`
+	Color      sql.NullString `json:"color"`
+	CategoryID sql.NullInt64  `json:"category_id"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+}
+
+func (q *Queries) GetTagsByProjectID(ctx context.Context, projectIds []int32) ([]GetTagsByProjectIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTagsByProjectID, pq.Array(projectIds))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Tag
+	var items []GetTagsByProjectIDRow
 	for rows.Next() {
-		var i Tag
+		var i GetTagsByProjectIDRow
 		if err := rows.Scan(
+			&i.ProjectID,
 			&i.ID,
 			&i.Name,
 			&i.Slug,
@@ -264,22 +314,34 @@ func (q *Queries) GetTagsByProjectID(ctx context.Context, projectID int64) ([]Ta
 }
 
 const getTechStacksByProjectID = `-- name: GetTechStacksByProjectID :many
-SELECT ts.id, ts.name, ts.slug, ts.icon, ts.column_order, ts.created_at, ts.updated_at
-FROM tech_stacks ts
-         JOIN project_tech_stacks pts ON ts.id = pts.tech_stack_id
-WHERE pts.project_id = $1
+SELECT project_tech_stacks.project_id, tech_stacks.id, tech_stacks.name, tech_stacks.slug, tech_stacks.icon, tech_stacks.column_order, tech_stacks.created_at, tech_stacks.updated_at
+FROM tech_stacks
+JOIN project_tech_stacks ON tech_stacks.id = project_tech_stacks.tech_stack_id
+WHERE project_tech_stacks.project_id = ANY($1::int[])
 `
 
-func (q *Queries) GetTechStacksByProjectID(ctx context.Context, projectID int64) ([]TechStack, error) {
-	rows, err := q.db.QueryContext(ctx, getTechStacksByProjectID, projectID)
+type GetTechStacksByProjectIDRow struct {
+	ProjectID   int64          `json:"project_id"`
+	ID          int64          `json:"id"`
+	Name        string         `json:"name"`
+	Slug        string         `json:"slug"`
+	Icon        sql.NullString `json:"icon"`
+	ColumnOrder int32          `json:"column_order"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
+func (q *Queries) GetTechStacksByProjectID(ctx context.Context, projectIds []int32) ([]GetTechStacksByProjectIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTechStacksByProjectID, pq.Array(projectIds))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []TechStack
+	var items []GetTechStacksByProjectIDRow
 	for rows.Next() {
-		var i TechStack
+		var i GetTechStacksByProjectIDRow
 		if err := rows.Scan(
+			&i.ProjectID,
 			&i.ID,
 			&i.Name,
 			&i.Slug,
