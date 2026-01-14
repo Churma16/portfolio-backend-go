@@ -60,13 +60,18 @@ FROM project_tags
 WHERE project_id = $1;
 
 -- name: GetTechStacksByProjectID :many
-SELECT ts.*
-FROM tech_stacks ts
-         JOIN project_tech_stacks pts ON ts.id = pts.tech_stack_id
-WHERE pts.project_id = $1;
+SELECT project_tech_stacks.project_id, tech_stacks.*
+FROM tech_stacks
+         JOIN project_tech_stacks ON tech_stacks.id = project_tech_stacks.tech_stack_id
+WHERE project_tech_stacks.project_id = ANY (@project_ids::int[]);
 
 -- name: GetTagsByProjectID :many
-SELECT t.*
-FROM tags t
-         JOIN project_tags pt ON t.id = pt.tag_id
-WHERE pt.project_id = $1;
+SELECT project_tags.project_id, tags.*
+FROM tags
+         JOIN project_tags ON tags.id = project_tags.tag_id
+WHERE project_tags.project_id = ANY (@project_ids::int[]);
+
+-- name: GetCategoriesByIDs :many
+SELECT *
+FROM categories
+WHERE id = ANY (@category_ids::int[]);
