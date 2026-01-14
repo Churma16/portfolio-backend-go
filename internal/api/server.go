@@ -59,6 +59,7 @@ func NewServer(store *db.Store) *Server {
 
 	// Rute Project
 	authRoutes.POST("/projects", server.createProject)
+	router.GET("/projects", server.GetProjects)
 
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
