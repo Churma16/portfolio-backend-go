@@ -208,9 +208,6 @@ func (server *Server) showProjects(context *gin.Context) {
 					Icon: techStackRow.Icon.String,
 					// Add other fields as needed
 				}
-				item.TechStacks = tsData
-			}
-		}
 				// Add to map based on Project ID
 				techStackLookup[techStackRow.ProjectID] = append(techStackLookup[techStackRow.ProjectID], techStackData)
 			}
@@ -261,6 +258,91 @@ func (server *Server) showProjects(context *gin.Context) {
 	// 5. Return JSON Response
 	responseMetadata := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved", len(projectResponseList))
 	context.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMetadata, projectResponseList))
+}
+
+func (server *Server) showProject(context *gin.Context) {
+	idParam := context.Param("id")
+	projectID, parseError := strconv.ParseInt(idParam, 10, 64)
+	if parseError != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	queryParam := context.Query("with")
+
+	// 1. Retrieve Project by ID
+	project, retrievalError := server.store.GetProject(context, projectID)
+	if retrievalError != nil {
+		context.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	// 2. Prepare Maps for Related Data
+	techStackLookup := make(map[int64][]TechStackData)
+	tagLookup := make(map[int64][]TagData)
+	var category *db.Category
+
+	// --- Query: Category ---
+	if strings.Contains(queryParam, "category") && project.CategoryID.Valid {
+		categoryResult, categoryError := server.store.GetCategory(context, project.CategoryID.Int64)
+		if categoryError == nil {
+			category = &categoryResult
+		}
+	}
+
+	// --- Query: Tech Stacks ---
+	if strings.Contains(queryParam, "techStacks") {
+		techStackResults, techStackError := server.store.GetTechStacksByProjectID(context, []int32{int32(project.ID)})
+		if techStackError == nil {
+			for _, techStackRow := range techStackResults {
+				techStackData := TechStackData{
+					ID:   techStackRow.ID,
+					Name: techStackRow.Name,
+					Slug: techStackRow.Slug,
+					Icon: techStackRow.Icon.String,
+				}
+				techStackLookup[techStackRow.ProjectID] = append(techStackLookup[techStackRow.ProjectID], techStackData)
+			}
+		}
+	}
+
+	// --- Query: Tags ---
+	if strings.Contains(queryParam, "tags") {
+		tagResults, tagError := server.store.GetTagsByProjectID(context, []int32{int32(project.ID)})
+		if tagError == nil {
+			for _, tagRow := range tagResults {
+				tagData := TagData{
+					ID:    tagRow.ID,
+					Name:  tagRow.Name,
+					Slug:  tagRow.Slug,
+					Color: tagRow.Color.String,
+				}
+				tagLookup[tagRow.ProjectID] = append(tagLookup[tagRow.ProjectID], tagData)
+			}
+		}
+	}
+
+	// 3. Assemble Final Response
+	projectItem := projectResponse(project)
+
+	// Attach Category
+	if category != nil {
+		projectItem.Category = category
+	}
+
+	// Attach TechStacks
+	if techStacks, exists := techStackLookup[project.ID]; exists {
+		projectItem.TechStacks = techStacks
+	}
+
+	// Attach Tags
+	if tags, exists := tagLookup[project.ID]; exists {
+		projectItem.Tags = tags
+	}
+
+	// 4. Return JSON Response
+	responseMetadata := response.NewMeta(http.StatusOK, "success", "Project retrieved successfully")
+	context.JSON(http.StatusOK, response.NewSingleDataResponse(responseMetadata, projectItem))
 }
 
 func projectResponse(project db.Project) projectData {
