@@ -9,13 +9,13 @@ import (
 
 // Server melayani request HTTP dan koneksi DB
 type Server struct {
-	store           *db.Queries // Ini struct hasil generate SQLC
+	store           *db.Store // Ini struct hasil generate SQLC
 	categoryService service.CategoryService
 	router          *gin.Engine
 }
 
 // NewServer membuat instance server baru
-func NewServer(store *db.Queries) *Server {
+func NewServer(store *db.Store) *Server {
 	server := &Server{
 		store:           store,
 		categoryService: service.NewCategoryService(store),

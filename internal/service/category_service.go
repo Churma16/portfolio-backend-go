@@ -19,11 +19,11 @@ type CategoryService interface {
 
 // categoryService implements CategoryService interface
 type categoryService struct {
-	store *db.Queries
+	store *db.Store
 }
 
 // NewCategoryService creates a new instance of CategoryService
-func NewCategoryService(store *db.Queries) CategoryService {
+func NewCategoryService(store *db.Store) CategoryService {
 	return &categoryService{store: store}
 }
 

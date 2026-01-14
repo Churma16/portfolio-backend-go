@@ -29,7 +29,8 @@ func main() {
 	}
 
 	// 3. Init Store & Server
-	store := db.New(conn)
+	//store := db.New(conn)
+	store := db.NewStore(conn)
 	server := api.NewServer(store)
 
 	// 4. Jalankan Server
