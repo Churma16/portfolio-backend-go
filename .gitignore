@@ -2,3 +2,4 @@ app.env
 uploads
 storage
 db/sqlc
+category_refactor_docs
