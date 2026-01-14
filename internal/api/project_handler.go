@@ -6,6 +6,7 @@ import (
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
@@ -124,6 +125,71 @@ func (server *Server) createProject(ctx *gin.Context) {
 	meta := response.NewMeta(http.StatusOK, "success", "Project created successfully")
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
 }
+func (server *Server) GetProjects(ctx *gin.Context) {
+	// 1. Ambil Query Parameter "with"
+	// Contoh: /projects?with=category,techStacks,tags
+	withParam := ctx.Query("with")
+
+	// 2. Ambil Semua Project dari Database
+	projects, err := server.store.GetProjects(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. Siapkan Slice untuk Response Akhir
+	var responseData []projectData
+
+	// 4. LOOPING (Manual Eager Loading)
+	for _, p := range projects {
+		// Ubah dari db.Project ke struct JSON (relasi masih nil)
+		item := projectResponse(p)
+
+		// --- LOGIKA "WITH" CATEGORY ---
+		if strings.Contains(withParam, "category") {
+			category, err := server.store.GetCategory(ctx, p.CategoryID.Int64)
+			if err == nil {
+				item.Category = &category // Tempelkan (Address of category)
+			}
+		}
+
+		// --- LOGIKA "WITH" TECH STACKS ---
+		if strings.Contains(withParam, "techStacks") {
+			// Ambil data dari tabel pivot
+			techStacksDB, err := server.store.GetTechStacksByProjectID(ctx, p.ID)
+			if err == nil {
+				// Convert []db.TechStack -> []TechStackData
+				var tsData []TechStackData
+				for _, t := range techStacksDB {
+					// Panggil helper yang ada di tech_stack_handler.go
+					tsData = append(tsData, techStackResponse(t))
+				}
+				item.TechStacks = tsData
+			}
+		}
+
+		// --- LOGIKA "WITH" TAGS ---
+		if strings.Contains(withParam, "tags") {
+			// Ambil data dari tabel pivot
+			tagsDB, err := server.store.GetTagsByProjectID(ctx, p.ID)
+			if err == nil {
+				// Convert []db.Tag -> []TagData
+				var tData []TagData
+				for _, t := range tagsDB {
+					// Panggil helper yang ada di tag_handler.go
+					tData = append(tData, tagResponse(t))
+				}
+				item.Tags = tData
+			}
+		}
+
+		responseData = append(responseData, item)
+	}
+
+	// 5. Return JSON
+	meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved", len(responseData))
+	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, responseData))
+}
 
 func projectResponse(project db.Project) projectData {
 	return projectData{
@@ -140,8 +206,6 @@ func projectResponse(project db.Project) projectData {
 		CreatedAt:   project.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   project.UpdatedAt.Format("2006-01-02 15:04:05"),
 
-		// Field Tambahan (Pointers & Omitted if Empty)
-		// Kita pakai Pointer (*) supaya kalau tidak diminta, nilainya null (tidak muncul di JSON)
 		Category:   nil,
 		TechStacks: nil,
 		Tags:       nil,
