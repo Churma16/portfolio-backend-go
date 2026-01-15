@@ -2,10 +2,13 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
+	"go-portfolio-api/internal/util"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
@@ -61,11 +64,22 @@ func (server *Server) createTag(ctx *gin.Context) {
 	responseData := tagResponse(createdTag)
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Tag berhasil dibuat")
 	responsePayload := response.NewSingleDataResponse(responseMeta, responseData)
+	util.DeleteCacheByPrefix(server.redisClient, "tags:")
 	ctx.JSON(http.StatusOK, responsePayload)
 }
 
 func (server *Server) showTags(ctx *gin.Context) {
-	// Call the service to get all tags
+	cacheKey := "tags:list"
+	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
+	if cacheErr == nil {
+		var cachedTags []TagData
+		if err := json.Unmarshal([]byte(cacheValue), &cachedTags); err == nil {
+			responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Tags ditemukan (Cached)", len(cachedTags))
+			ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, cachedTags))
+			return
+		}
+	}
+
 	allTags, retrievalError := server.store.GetTags(ctx)
 	if retrievalError != nil {
 		ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tags not found"))
@@ -73,9 +87,10 @@ func (server *Server) showTags(ctx *gin.Context) {
 	}
 
 	responseData := tagsResponses(allTags)
+	cachedData, _ := json.Marshal(responseData)
+	server.redisClient.Set(ctx, cacheKey, cachedData, 1*time.Hour)
 	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Tags ditemukan", len(allTags))
-	responsePayload := response.NewMultipleDataResponse(responseMeta, responseData)
-	ctx.JSON(http.StatusOK, responsePayload)
+	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, responseData))
 }
 
 func (server *Server) showTag(ctx *gin.Context) {
@@ -155,6 +170,7 @@ func (server *Server) updateTag(ctx *gin.Context) {
 	data := tagResponse(tag)
 	meta := response.NewMeta(http.StatusOK, "success", "Tag berhasil diperbarui")
 	resp := response.NewSingleDataResponse(meta, data)
+	util.DeleteCacheByPrefix(server.redisClient, "tags:")
 	ctx.JSON(http.StatusOK, resp)
 }
 
@@ -180,6 +196,7 @@ func (server *Server) deleteTag(ctx *gin.Context) {
 	meta := response.NewMeta(http.StatusOK, "success", "Tag berhasil dihapus")
 	data := tagResponse(tag)
 	resp := response.NewSingleDataResponse(meta, data)
+	util.DeleteCacheByPrefix(server.redisClient, "tags:")
 	ctx.JSON(http.StatusOK, resp)
 }
 
