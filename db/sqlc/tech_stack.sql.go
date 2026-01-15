@@ -117,10 +117,10 @@ func (q *Queries) GetTechStacks(ctx context.Context) ([]TechStack, error) {
 
 const updateTechStack = `-- name: UpdateTechStack :one
 update tech_stacks
-set name         = $2,
-    slug         = $3,
-    icon         = $4,
-    updated_at   = now()
+set name       = $2,
+    slug       = $3,
+    icon       = $4,
+    updated_at = now()
 where id = $1 returning id, name, slug, icon, column_order, created_at, updated_at
 `
 
