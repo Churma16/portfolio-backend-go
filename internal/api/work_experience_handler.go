@@ -1,10 +1,12 @@
 package api
 
 import (
+	"database/sql"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -183,6 +185,29 @@ func workExperiencesResponse(workExperiences []db.WorkExperience) []workExperien
 	data := make([]workExperienceData, len(workExperiences))
 	for i, workExperience := range workExperiences {
 		data[i] = workExperienceResponse(workExperience)
+func (server *Server) showWorkExperience(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	workExperience, err := server.store.GetWorkExperience(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Work experience not found"})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	responseData := workExperienceResponse(workExperience)
+	responseMeta := response.NewMeta(http.StatusOK, "success", "Work experience retrieved successfully")
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
+}
+
 	}
 	return data
 }
