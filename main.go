@@ -9,10 +9,17 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
 	// 1. Load file .env
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379", // Sesuaikan alamat Redis kamu
+		Password: "",               // Kosongkan jika tidak ada password
+		DB:       0,                // Default DB
+	})
+
 	err := godotenv.Load("app.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -31,7 +38,7 @@ func main() {
 	// 3. Init Store & Server
 	//store := db.New(conn)
 	store := db.NewStore(conn)
-	server := api.NewServer(store)
+	server := api.NewServer(store, redisClient)
 
 	// 4. Jalankan Server
 	log.Println("Server running on", serverAddress)

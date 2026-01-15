@@ -5,6 +5,7 @@ import (
 	"go-portfolio-api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 // Server melayani request HTTP dan koneksi DB
@@ -12,13 +13,14 @@ type Server struct {
 	store           *db.Store // Ini struct hasil generate SQLC
 	categoryService service.CategoryService
 	router          *gin.Engine
+	redisClient     *redis.Client
 }
 
 // NewServer membuat instance server baru
-func NewServer(store *db.Store) *Server {
+func NewServer(store *db.Store, redisClient *redis.Client) *Server {
 	server := &Server{
-		store:           store,
-		categoryService: service.NewCategoryService(store),
+		store:       store,
+		redisClient: redisClient,
 	}
 	router := gin.Default()
 
