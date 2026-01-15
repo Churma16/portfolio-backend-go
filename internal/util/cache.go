@@ -10,8 +10,12 @@ import (
 func DeleteCacheByPrefix(redisClient *redis.Client, prefix string) {
 	ctx := context.Background()
 	// Find all keys matching the prefix
-	keys, _ := redisClient.Keys(ctx, prefix+"*").Result()
-	if len(keys) > 0 {
-		redisClient.Del(ctx, keys...)
+	keysSingleData, _ := redisClient.Keys(ctx, prefix+"list:*").Result()
+	keysMultiData, _ := redisClient.Keys(ctx, prefix+"single:*").Result()
+	if len(keysSingleData) > 0 {
+		redisClient.Del(ctx, keysSingleData...)
+	}
+	if len(keysMultiData) > 0 {
+		redisClient.Del(ctx, keysMultiData...)
 	}
 }
