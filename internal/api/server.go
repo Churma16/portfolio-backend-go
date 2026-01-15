@@ -64,6 +64,9 @@ func NewServer(store *db.Store, redisClient *redis.Client) *Server {
 	router.GET("/projects", server.showProjects)
 	router.GET("/projects/:id", server.showProject)
 	authRoutes.PUT("/projects/:id", server.updateProject)
+	authRoutes.DELETE("/projects/:id", server.deleteProject)
+	authRoutes.POST("/work-experiences", server.createWorkExperience)
+	router.GET("/work-experiences", server.showWorkExperiences)
 
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
