@@ -154,7 +154,7 @@ func (server *Server) createProject(ctx *gin.Context) {
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Project created successfully")
 	println("========== CREATE PROJECT DEBUG END (SUCCESS) ==========\n\n")
 
-	util.DeleteCacheByPrefix(server.redisClient, "projects:list:")
+	util.DeleteCacheByPrefix(server.redisClient, "projects:")
 
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
@@ -283,6 +283,20 @@ func (server *Server) showProjects(context *gin.Context) {
 }
 
 func (server *Server) showProject(context *gin.Context) {
+	// Improved Redis caching logic for showProject
+	cacheKey := "projects:single:" + context.Request.URL.RequestURI()
+	cacheValue, cacheErr := server.redisClient.Get(context, cacheKey).Result()
+	if cacheErr == nil {
+		// Cache hit: Data found in Redis
+		var cachedProject projectData
+		unmarshalErr := json.Unmarshal([]byte(cacheValue), &cachedProject)
+		if unmarshalErr == nil {
+			// Return cached data to the user
+			meta := response.NewMeta(http.StatusOK, "success", "Project retrieved (Cached)")
+			context.JSON(http.StatusOK, response.NewSingleDataResponse(meta, cachedProject))
+			return
+		}
+	}
 	idParam := context.Param("id")
 	projectID, parseError := strconv.ParseInt(idParam, 10, 64)
 	if parseError != nil {
@@ -361,7 +375,8 @@ func (server *Server) showProject(context *gin.Context) {
 	if tags, exists := tagLookup[project.ID]; exists {
 		projectItem.Tags = tags
 	}
-
+	cachedJsonData, _ := json.Marshal(projectItem)
+	server.redisClient.Set(context, cacheKey, cachedJsonData, 1*time.Hour)
 	// 4. Return JSON Response
 	responseMetadata := response.NewMeta(http.StatusOK, "success", "Project retrieved successfully")
 	context.JSON(http.StatusOK, response.NewSingleDataResponse(responseMetadata, projectItem))
@@ -466,10 +481,10 @@ func (server *Server) updateProject(ctx *gin.Context) {
 		return
 	}
 
+	util.DeleteCacheByPrefix(server.redisClient, "projects:")
 	// 7. Return Response
 	responseData := projectResponse(updatedProject)
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Project updated successfully")
-	util.DeleteCacheByPrefix(server.redisClient, "projects:list:")
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
@@ -503,7 +518,7 @@ func (server *Server) deleteProject(ctx *gin.Context) {
 	}
 
 	// 4. Return Success
-	util.DeleteCacheByPrefix(server.redisClient, "projects:list:")
+	util.DeleteCacheByPrefix(server.redisClient, "projects:")
 	meta := response.NewMeta(http.StatusOK, "success", "Project deleted successfully")
 	data := projectResponse(project)
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
