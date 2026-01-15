@@ -36,11 +36,9 @@ type TagData struct {
 
 func (server *Server) createTag(ctx *gin.Context) {
 	// Bind and validate the request body
-	var req CreateTagRequest
-	if err := ctx.ShouldBind(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	var tagRequest CreateTagRequest
 	if err := ctx.ShouldBind(&tagRequest); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
 		return
 	}
 
@@ -53,97 +51,78 @@ func (server *Server) createTag(ctx *gin.Context) {
 	}
 
 	// Call the service to create a new tag
-	tag, err := server.store.CreateTag(ctx, arguments)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	createdTag, creationError := server.store.CreateTag(ctx, createTagParams)
 	if creationError != nil {
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", creationError.Error()))
 		return
 	}
 
 	// Prepare and send the response
-	data := tagResponse(tag)
-	meta := response.NewMeta(http.StatusOK, "success", "Tag berhasil dibuat")
-	resp := response.NewSingleDataResponse(meta, data)
-	ctx.JSON(http.StatusOK, resp)
 	responseData := tagResponse(createdTag)
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Tag berhasil dibuat")
 	responsePayload := response.NewSingleDataResponse(responseMeta, responseData)
+	ctx.JSON(http.StatusOK, responsePayload)
 }
 
 func (server *Server) showTags(ctx *gin.Context) {
 	// Call the service to get all tags
-	tags, err := server.store.GetTags(ctx)
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Tags not found"})
 	allTags, retrievalError := server.store.GetTags(ctx)
 	if retrievalError != nil {
+		ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tags not found"))
 		return
 	}
 
-	data := tagsResponses(tags)
-	meta := response.NewMetaWithCount(http.StatusOK, "success", "Tags ditemukan", len(tags))
-	resp := response.NewMultipleDataResponse(meta, data)
-	ctx.JSON(http.StatusOK, resp)
 	responseData := tagsResponses(allTags)
 	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Tags ditemukan", len(allTags))
 	responsePayload := response.NewMultipleDataResponse(responseMeta, responseData)
+	ctx.JSON(http.StatusOK, responsePayload)
 }
 
 func (server *Server) showTag(ctx *gin.Context) {
 	// Parse the tag ID from the URL parameter
-	idParam := ctx.Param("id")
-	id, err := strconv.ParseInt(idParam, 10, 64)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 	tagIDParam := ctx.Param("id")
 	tagID, parseError := strconv.ParseInt(tagIDParam, 10, 64)
 	if parseError != nil {
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "invalid id"))
 		return
 	}
 
-	tags, err := server.store.GetTag(ctx, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
 	tagDetails, retrievalError := server.store.GetTag(ctx, tagID)
 	if retrievalError != nil {
 		if retrievalError == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Category not found"))
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Internal server error"))
 		}
 		return
 	}
-	data := tagResponse(tags)
-	meta := response.NewMeta(http.StatusOK, "success", "Tag ditemukan")
-	resp := response.NewSingleDataResponse(meta, data)
-	ctx.JSON(http.StatusOK, resp)
 	responseData := tagResponse(tagDetails)
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Tag ditemukan")
 	responsePayload := response.NewSingleDataResponse(responseMeta, responseData)
+	ctx.JSON(http.StatusOK, responsePayload)
 }
 
 func (server *Server) updateTag(ctx *gin.Context) {
 	var req UpdateTagRequest
 
 	if err := ctx.ShouldBind(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
 		return
 	}
 
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "invalid id"))
 		return
 	}
 
 	existingTag, err := server.store.GetTag(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tag not found"))
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		}
 		return
 	}
@@ -166,9 +145,9 @@ func (server *Server) updateTag(ctx *gin.Context) {
 	tag, err := server.store.UpdateTag(ctx, arguments)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tag not found"))
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		}
 		return
 	}
@@ -184,16 +163,16 @@ func (server *Server) deleteTag(ctx *gin.Context) {
 
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "invalid id"))
 		return
 	}
 
 	tag, err := server.store.DeleteTag(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tag not found"))
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		}
 		return
 	}
