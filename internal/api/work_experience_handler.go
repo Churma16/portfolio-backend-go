@@ -101,7 +101,7 @@ func (server *Server) createWorkExperience(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
-func (server *Server) getWorkExperiences(ctx *gin.Context) {
+func (server *Server) showWorkExperiences(ctx *gin.Context) {
 	queryParam := ctx.Query("with")
 
 	workExperiences, retrievalError := server.store.GetWorkExperiences(ctx)
@@ -181,10 +181,6 @@ func workExperienceResponse(workExperience db.WorkExperience) workExperienceData
 	}
 }
 
-func workExperiencesResponse(workExperiences []db.WorkExperience) []workExperienceData {
-	data := make([]workExperienceData, len(workExperiences))
-	for i, workExperience := range workExperiences {
-		data[i] = workExperienceResponse(workExperience)
 func (server *Server) showWorkExperience(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
@@ -208,6 +204,105 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
+func (server *Server) updateWorkExperience(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	var workExpRequest workExperienceRequest
+	if err := ctx.ShouldBind(&workExpRequest); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var updatedWorkExp db.WorkExperience
+	txErr := server.store.ExecTx(ctx, func(queries *db.Queries) error {
+		updateParams := db.UpdateWorkExperienceParams{
+			ID:          id,
+			Company:     workExpRequest.Company,
+			Position:    workExpRequest.Position,
+			Location:    convertToNullString(workExpRequest.Location),
+			StartDate:   convertToNullString(workExpRequest.StartDate),
+			EndDate:     convertToNullString(workExpRequest.EndDate),
+			IsCurrent:   convertToNullBool(workExpRequest.isCurrent),
+			Description: convertToNullString(workExpRequest.Description),
+		}
+
+		updatedWorkExp, err = queries.UpdateWorkExperience(ctx, updateParams)
+		if err != nil {
+			return err
+		}
+
+		// Update TechStacks and Tags (if provided)
+		techStackIDs, _ := util.ParseStringToIntArray(workExpRequest.TechStackIDs)
+		tagIDs, _ := util.ParseStringToIntArray(workExpRequest.TagIDs)
+
+		if err := queries.DeleteWorkExperienceTechStacks(ctx, id); err != nil {
+			return err
+		}
+		if err := queries.DeleteWorkExperienceTags(ctx, id); err != nil {
+			return err
+		}
+
+		for _, techStackID := range techStackIDs {
+			if err := queries.AddTechStackToWorkExperience(ctx, db.AddTechStackToWorkExperienceParams{
+				WorkExperienceID: id,
+				TechStackID:      techStackID,
+			}); err != nil {
+				return err
+			}
+		}
+
+		for _, tagID := range tagIDs {
+			if err := queries.AddTagToWorkExperience(ctx, db.AddTagToWorkExperienceParams{
+				WorkExperienceID: id,
+				TagID:            tagID,
+			}); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if txErr != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": txErr.Error()})
+		return
+	}
+
+	util.DeleteCacheByPrefix(server.redisClient, "workExperiences:")
+	meta := response.NewMeta(http.StatusOK, "success", "Work experience updated successfully")
+	data := workExperienceResponse(updatedWorkExp)
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
+}
+
+func (server *Server) deleteWorkExperience(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	deletedWorkExp, err := server.store.DeleteProject(ctx, id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	util.DeleteCacheByPrefix(server.redisClient, "workExperiences:")
+	meta := response.NewMeta(http.StatusOK, "success", "Work Experience deleted successfully")
+	data := projectResponse(deletedWorkExp)
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
+}
+
+func workExperiencesResponse(workExperiences []db.WorkExperience) []workExperienceData {
+	data := make([]workExperienceData, len(workExperiences))
+	for i, workExperience := range workExperiences {
+		data[i] = workExperienceResponse(workExperience)
 	}
 	return data
 }
