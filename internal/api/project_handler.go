@@ -2,12 +2,14 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
@@ -155,6 +157,21 @@ func (server *Server) createProject(ctx *gin.Context) {
 }
 
 func (server *Server) showProjects(context *gin.Context) {
+	cacheKey := "projects:list:" + context.Request.URL.RequestURI()
+	val, err := server.redisClient.Get(context, cacheKey).Result()
+	if err == nil {
+		// HORE! Data ada di Redis.
+		// Kita unmarshal JSON string dari Redis balik ke struct Go
+		var projectsData []projectData
+		errUnmarshal := json.Unmarshal([]byte(val), &projectsData)
+
+		if errUnmarshal == nil {
+			// Langsung Return ke User (Database gak disentuh sama sekali!)
+			meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved (Cached)", len(projectsData))
+			context.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, projectsData))
+			return
+		}
+	}
 	queryParam := context.Query("with")
 
 	// 1. Retrieve Projects
@@ -252,6 +269,8 @@ func (server *Server) showProjects(context *gin.Context) {
 
 		projectResponseList = append(projectResponseList, projectItem)
 	}
+	jsonData, _ := json.Marshal(projectResponseList)
+	server.redisClient.Set(context, cacheKey, jsonData, 1*time.Hour)
 
 	// 5. Return JSON Response
 	responseMetadata := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved", len(projectResponseList))
