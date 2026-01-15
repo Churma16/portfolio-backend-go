@@ -54,3 +54,9 @@ func NewMultipleDataResponse(meta Meta, data interface{}) MultipleDataResponse {
 		Data: data,
 	}
 }
+
+// ErrorResponse represents a response for errors
+func ErrorResponse(code int, status, message string) SingleDataResponse {
+	meta := NewMeta(code, status, message)
+	return NewSingleDataResponse(meta, nil)
+}
