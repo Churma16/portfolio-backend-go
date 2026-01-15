@@ -73,6 +73,9 @@ func NewServer(store *db.Store, redisClient *redis.Client) *Server {
 	authRoutes.PUT("/work-experiences/:id", server.updateWorkExperience)
 	authRoutes.DELETE("/work-experiences/:id", server.deleteWorkExperience)
 
+	// Rute Message
+	router.POST("/messages", server.createMessage)
+
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
 		userID, _ := ctx.Get("user_id")
