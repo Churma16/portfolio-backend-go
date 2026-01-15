@@ -251,7 +251,6 @@ func (server *Server) showProjects(context *gin.Context) {
 
 	// 4. Assemble Final Response
 	var projectResponseList []projectData
-
 	for _, project := range projects {
 		projectItem := projectResponse(project)
 
@@ -375,12 +374,14 @@ func (server *Server) showProject(context *gin.Context) {
 	if tags, exists := tagLookup[project.ID]; exists {
 		projectItem.Tags = tags
 	}
+
 	cachedJsonData, _ := json.Marshal(projectItem)
 	server.redisClient.Set(context, cacheKey, cachedJsonData, 1*time.Hour)
 	// 4. Return JSON Response
 	responseMetadata := response.NewMeta(http.StatusOK, "success", "Project retrieved successfully")
 	context.JSON(http.StatusOK, response.NewSingleDataResponse(responseMetadata, projectItem))
 }
+
 func (server *Server) updateProject(ctx *gin.Context) {
 	// 1. Extract Project ID from URL (/projects/:id)
 	var projectID struct {
@@ -519,6 +520,13 @@ func (server *Server) deleteProject(ctx *gin.Context) {
 	// 3. Eksekusi Hapus
 	// Berkat ON DELETE CASCADE, Tech Stack & Tags ikut terhapus otomatis.
 	project, err := server.store.DeleteProject(ctx, uri.ID)
+	if project.Thumbnail.Valid {
+		if err := util.DeleteFile(project.Thumbnail.String); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete project thumbnail"})
+			return
+		}
+	}
+
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
