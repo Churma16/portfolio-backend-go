@@ -153,6 +153,9 @@ func (server *Server) createProject(ctx *gin.Context) {
 	responseData := projectResponse(newProject)
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Project created successfully")
 	println("========== CREATE PROJECT DEBUG END (SUCCESS) ==========\n\n")
+
+	util.DeleteCacheByPrefix(server.redisClient, "projects:list:")
+
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
@@ -466,7 +469,44 @@ func (server *Server) updateProject(ctx *gin.Context) {
 	// 7. Return Response
 	responseData := projectResponse(updatedProject)
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Project updated successfully")
+	util.DeleteCacheByPrefix(server.redisClient, "projects:list:")
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
+}
+
+func (server *Server) deleteProject(ctx *gin.Context) {
+	// 1. Ambil ID dari URL
+	var uri struct {
+		ID int64 `uri:"id" binding:"required"`
+	}
+	if err := ctx.ShouldBindUri(&uri); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Cek Apakah Project Ada? (Optional, tapi bagus buat UX biar bisa return 404)
+	_, err := server.store.GetProject(ctx, uri.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. Eksekusi Hapus
+	// Berkat ON DELETE CASCADE, Tech Stack & Tags ikut terhapus otomatis.
+	project, err := server.store.DeleteProject(ctx, uri.ID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 4. Return Success
+	util.DeleteCacheByPrefix(server.redisClient, "projects:list:")
+	meta := response.NewMeta(http.StatusOK, "success", "Project deleted successfully")
+	data := projectResponse(project)
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
 }
 
 func projectResponse(project db.Project) projectData {
@@ -513,40 +553,4 @@ func projectsResponse(projects []db.Project) []projectData {
 		}
 	}
 	return data
-}
-
-func (server *Server) deleteProject(ctx *gin.Context) {
-	// 1. Ambil ID dari URL
-	var uri struct {
-		ID int64 `uri:"id" binding:"required"`
-	}
-	if err := ctx.ShouldBindUri(&uri); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 2. Cek Apakah Project Ada? (Optional, tapi bagus buat UX biar bisa return 404)
-	_, err := server.store.GetProject(ctx, uri.ID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 3. Eksekusi Hapus
-	// Berkat ON DELETE CASCADE, Tech Stack & Tags ikut terhapus otomatis.
-	project, err := server.store.DeleteProject(ctx, uri.ID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 4. Return Success
-	meta := response.NewMeta(http.StatusOK, "success", "Project deleted successfully")
-	data := projectResponse(project)
-	// Data kita kirim null saja karena sudah dihapus
-	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
 }
