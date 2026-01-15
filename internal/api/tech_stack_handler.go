@@ -2,10 +2,13 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
+	"go-portfolio-api/internal/util"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
@@ -55,12 +58,24 @@ func (server *Server) createTechStack(ctx *gin.Context) {
 		return
 	}
 
+	util.DeleteCacheByPrefix(server.redisClient, "tech_stacks:")
 	responseData := techStackResponse(createdTechStack)
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Create tech stack")
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
 func (server *Server) showTechStacks(ctx *gin.Context) {
+	cacheKey := "tech_stacks:list"
+	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
+	if cacheErr == nil {
+		var cachedTechStacks []TechStackData
+		if err := json.Unmarshal([]byte(cacheValue), &cachedTechStacks); err == nil {
+			responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Get all tech stacks (Cached)", len(cachedTechStacks))
+			ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, cachedTechStacks))
+			return
+		}
+	}
+
 	allTechStacks, retrievalError := server.store.GetTechStacks(ctx)
 	if retrievalError != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": retrievalError.Error()})
@@ -68,6 +83,8 @@ func (server *Server) showTechStacks(ctx *gin.Context) {
 	}
 
 	responseData := TechStacksResponse(allTechStacks)
+	cachedData, _ := json.Marshal(responseData)
+	server.redisClient.Set(ctx, cacheKey, cachedData, 1*time.Hour)
 	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Get all tech stacks", len(allTechStacks))
 	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, responseData))
 }
@@ -136,6 +153,7 @@ func (server *Server) updateTechStack(ctx *gin.Context) {
 		return
 	}
 
+	util.DeleteCacheByPrefix(server.redisClient, "tech_stacks:")
 	data := techStackResponse(techStack)
 	meta := response.NewMeta(http.StatusOK, "success", "Tech stack berhasil diperbarui")
 	resp := response.NewSingleDataResponse(meta, data)
@@ -157,6 +175,7 @@ func (server *Server) deleteTechStack(ctx *gin.Context) {
 		return
 	}
 
+	util.DeleteCacheByPrefix(server.redisClient, "tech_stacks:")
 	data := techStackResponse(techStack)
 	meta := response.NewMeta(http.StatusOK, "success", "Tech stack berhasil dihapus")
 	resp := response.NewSingleDataResponse(meta, data)
