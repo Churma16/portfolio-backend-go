@@ -6,6 +6,7 @@ import (
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -114,7 +115,7 @@ func (server *Server) createProject(ctx *gin.Context) {
 		for _, techStackID := range techStackIDs {
 			executionError = queries.AddTechStackToProject(ctx, db.AddTechStackToProjectParams{
 				ProjectID:   createdProject.ID,
-				TechStackID: techStackID, // Cast to int32 if SQLC generates int32
+				TechStackID: techStackID, // Cast to int64 if SQLC generates int64
 			})
 			if executionError != nil {
 				return executionError
@@ -125,7 +126,7 @@ func (server *Server) createProject(ctx *gin.Context) {
 		for _, tagID := range tagIDs {
 			executionError = queries.AddTagToProject(ctx, db.AddTagToProjectParams{
 				ProjectID: createdProject.ID,
-				TagID:     tagID, // Cast to int32
+				TagID:     tagID, // Cast to int64
 			})
 			if executionError != nil {
 				return executionError
@@ -151,10 +152,6 @@ func (server *Server) createProject(ctx *gin.Context) {
 	println("========== CREATE PROJECT DEBUG END (SUCCESS) ==========\n\n")
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
 }
-func (server *Server) GetProjects(ctx *gin.Context) {
-	// 1. Ambil Query Parameter "with"
-	// Contoh: /projects?with=category,techStacks,tags
-	withParam := ctx.Query("with")
 
 func (server *Server) showProjects(context *gin.Context) {
 	queryParam := context.Query("with")
@@ -343,6 +340,118 @@ func (server *Server) showProject(context *gin.Context) {
 	// 4. Return JSON Response
 	responseMetadata := response.NewMeta(http.StatusOK, "success", "Project retrieved successfully")
 	context.JSON(http.StatusOK, response.NewSingleDataResponse(responseMetadata, projectItem))
+}
+func (server *Server) updateProject(ctx *gin.Context) {
+	// 1. Ambil ID dari URL (/projects/:id)
+	var uri struct {
+		ID int64 `uri:"id" binding:"required"`
+	}
+	if err := ctx.ShouldBindUri(&uri); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Bind Data Form (Reuse struct createProjectRequest)
+	var req createProjectRequest
+	if err := ctx.ShouldBind(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. Cek Data Lama (Buat ambil Thumbnail lama kalau user ga upload baru)
+	oldProject, err := server.store.GetProject(ctx, uri.ID)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	// 4. Handle Thumbnail (Ganti Baru atau Pakai Lama?)
+	finalThumbnail := oldProject.Thumbnail.String
+	file, err := ctx.FormFile("thumbnail")
+	if err == nil {
+		// User upload baru
+		folderName := "projects"
+		url, errSave := util.SaveUploadedFile(ctx, file, folderName)
+		if errSave != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload thumbnail"})
+			return
+		}
+		finalThumbnail = url
+	}
+
+	// 5. Parse Array IDs
+	techStackIDs, _ := util.ParseStringToIntArray(req.TechStackIDs)
+	tagIDs, _ := util.ParseStringToIntArray(req.TagIDs)
+
+	// 6. TRANSACTION BLOCK (Wipe & Replace Strategy)
+	var updatedProject db.Project
+
+	errTx := server.store.ExecTx(ctx, func(q *db.Queries) error {
+		var err error
+
+		// A. Update Data Utama Project
+		arg := db.UpdateProjectParams{
+			ID:         uri.ID,
+			Title:      req.Title,
+			Slug:       slug.Make(req.Title),
+			Content:    convertToNullString(req.Content),
+			Thumbnail:  convertToNullString(finalThumbnail),
+			RepoUrl:    convertToNullString(req.RepoUrl), // Sesuaikan field
+			DemoUrl:    convertToNullString(req.DemoUrl), // Sesuaikan field
+			CategoryID: sql.NullInt64{Int64: req.CategoryID, Valid: true},
+		}
+
+		updatedProject, err = q.UpdateProject(ctx, arg)
+		if err != nil {
+			return err
+		}
+
+		// B. WIPE: Hapus Semua Relasi Lama
+		err = q.DeleteProjectTechStacks(ctx, uri.ID)
+		if err != nil {
+			return err
+		}
+
+		err = q.DeleteProjectTags(ctx, uri.ID)
+		if err != nil {
+			return err
+		}
+
+		// C. REPLACE: Insert Ulang Relasi Baru (Sama kayak Create)
+		// Loop Tech Stack
+		for _, tsID := range techStackIDs {
+			err = q.AddTechStackToProject(ctx, db.AddTechStackToProjectParams{
+				ProjectID:   uri.ID,
+				TechStackID: tsID, // Cast int32
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		// Loop Tags
+		for _, tID := range tagIDs {
+			err = q.AddTagToProject(ctx, db.AddTagToProjectParams{
+				ProjectID: uri.ID,
+				TagID:     tID, // Cast int32
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if errTx != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": errTx.Error()})
+		return
+	}
+
+	// 7. Return Response
+	rsp := projectResponse(updatedProject)
+	meta := response.NewMeta(http.StatusOK, "success", "Project updated successfully")
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, rsp))
 }
 
 func projectResponse(project db.Project) projectData {
