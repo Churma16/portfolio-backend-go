@@ -35,60 +35,60 @@ type TechStackData struct {
 
 func (server *Server) createTechStack(ctx *gin.Context) {
 	// Bind and validate the request body
-	var req CreateTechStackRequest
-	if err := ctx.ShouldBind(&req); err != nil {
+	var techStackRequest CreateTechStackRequest
+	if err := ctx.ShouldBind(&techStackRequest); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Prepare the parameters for creating a new tech stack
-	arguments := db.CreateTechStackParams{
-		Name: req.Name,
-		Slug: slug.Make(req.Name),
-		Icon: convertToNullString(req.Icon),
+	createTechStackParams := db.CreateTechStackParams{
+		Name: techStackRequest.Name,
+		Slug: slug.Make(techStackRequest.Name),
+		Icon: convertToNullString(techStackRequest.Icon),
 	}
 
 	// Call the service to create a new tech stack
-	techStack, err := server.store.CreateTechStack(ctx, arguments)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	createdTechStack, creationError := server.store.CreateTechStack(ctx, createTechStackParams)
+	if creationError != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": creationError.Error()})
 		return
 	}
 
-	data := techStackResponse(techStack)
-	meta := response.NewMeta(http.StatusOK, "success", "Create tech stack")
-	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
+	responseData := techStackResponse(createdTechStack)
+	responseMeta := response.NewMeta(http.StatusOK, "success", "Create tech stack")
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
 func (server *Server) showTechStacks(ctx *gin.Context) {
-	techStacks, err := server.store.GetTechStacks(ctx)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	allTechStacks, retrievalError := server.store.GetTechStacks(ctx)
+	if retrievalError != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": retrievalError.Error()})
 		return
 	}
 
-	data := TechStacksResponse(techStacks)
-	meta := response.NewMetaWithCount(http.StatusOK, "success", "Get all tech stacks", len(techStacks))
-	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, data))
+	responseData := TechStacksResponse(allTechStacks)
+	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Get all tech stacks", len(allTechStacks))
+	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, responseData))
 }
 
 func (server *Server) showTechStack(ctx *gin.Context) {
-	idParam := ctx.Param("id")
-	id, err := strconv.ParseInt(idParam, 10, 64)
-	if err != nil {
+	techStackIDParam := ctx.Param("id")
+	techStackID, parseError := strconv.ParseInt(techStackIDParam, 10, 64)
+	if parseError != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tech stack ID"})
 		return
 	}
 
-	techStacks, err := server.store.GetTechStack(ctx, id)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	techStackDetails, retrievalError := server.store.GetTechStack(ctx, techStackID)
+	if retrievalError != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": retrievalError.Error()})
 		return
 	}
 
-	data := techStackResponse(techStacks)
-	meta := response.NewMeta(http.StatusOK, "success", "Get tech stack")
-	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
+	responseData := techStackResponse(techStackDetails)
+	responseMeta := response.NewMeta(http.StatusOK, "success", "Get tech stack")
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 
 }
 
