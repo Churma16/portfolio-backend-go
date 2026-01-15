@@ -5,6 +5,7 @@ import (
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,6 +31,8 @@ type workExperienceData struct {
 	EndDate     string `json:"end_date"`
 	IsCurrent   bool   `json:"is_current"`
 	Description string `json:"description"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 
 	TechStacks []TechStackData `json:"tech_stacks,omitempty"`
 	Tags       []TagData       `json:"tags,omitempty"`
@@ -96,6 +99,69 @@ func (server *Server) createWorkExperience(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
+func (server *Server) getWorkExperiences(ctx *gin.Context) {
+	queryParam := ctx.Query("with")
+
+	workExperiences, retrievalError := server.store.GetWorkExperiences(ctx)
+	if retrievalError != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": retrievalError.Error()})
+		return
+	}
+
+	// Populate workExperienceIDs
+	var workExperienceIDs []int32
+	for _, workExperience := range workExperiences {
+		workExperienceIDs = append(workExperienceIDs, int32(workExperience.ID))
+	}
+
+	techStackLookup := make(map[int64][]TechStackData)
+	tagLookup := make(map[int64][]TagData)
+
+	if strings.Contains(queryParam, "techStacks") && len(workExperienceIDs) > 0 {
+		techStackResults, techStackError := server.store.GetTechStacksByWorkExperienceID(ctx, workExperienceIDs)
+		if techStackError == nil {
+			for _, techStackRow := range techStackResults {
+				techStackData := TechStackData{
+					ID:   techStackRow.ID,
+					Name: techStackRow.Name,
+					Slug: techStackRow.Slug,
+					Icon: techStackRow.Icon.String,
+				}
+				techStackLookup[techStackRow.WorkExperienceID] = append(techStackLookup[techStackRow.WorkExperienceID], techStackData)
+			}
+		}
+	}
+
+	if strings.Contains(queryParam, "tags") && len(workExperienceIDs) > 0 {
+		tagResults, tagError := server.store.GetTagsByWorkExperienceID(ctx, workExperienceIDs)
+		if tagError == nil {
+			for _, tagRow := range tagResults {
+				tagData := TagData{
+					ID:    tagRow.ID,
+					Name:  tagRow.Name,
+					Slug:  tagRow.Slug,
+					Color: tagRow.Color.String,
+				}
+				tagLookup[tagRow.WorkExperienceID] = append(tagLookup[tagRow.WorkExperienceID], tagData)
+			}
+		}
+	}
+
+	var responseData []workExperienceData
+	for _, workExperience := range workExperiences {
+		workExpItem := workExperienceResponse(workExperience)
+		if techStacks, exists := techStackLookup[workExperience.ID]; exists {
+			workExpItem.TechStacks = techStacks
+		}
+		if tags, exists := tagLookup[workExperience.ID]; exists {
+			workExpItem.Tags = tags
+		}
+		responseData = append(responseData, workExpItem)
+	}
+	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Work Experiences retrieved successfully", len(responseData))
+	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, responseData))
+}
+
 func workExperienceResponse(workExperience db.WorkExperience) workExperienceData {
 	return workExperienceData{
 		Company:     workExperience.Company,
@@ -105,8 +171,18 @@ func workExperienceResponse(workExperience db.WorkExperience) workExperienceData
 		EndDate:     workExperience.EndDate.String,
 		IsCurrent:   workExperience.IsCurrent.Bool,
 		Description: workExperience.Description.String,
+		CreatedAt:   workExperience.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   workExperience.UpdatedAt.Format("2006-01-02 15:04:05"),
 
 		TechStacks: nil,
 		Tags:       nil,
 	}
+}
+
+func workExperiencesResponse(workExperiences []db.WorkExperience) []workExperienceData {
+	data := make([]workExperienceData, len(workExperiences))
+	for i, workExperience := range workExperiences {
+		data[i] = workExperienceResponse(workExperience)
+	}
+	return data
 }
