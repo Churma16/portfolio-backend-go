@@ -125,15 +125,31 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 	return i, err
 }
 
-const deleteProject = `-- name: DeleteProject :exec
+const deleteProject = `-- name: DeleteProject :one
 DELETE
 FROM projects
-WHERE id = $1
+WHERE id = $1 RETURNING id, title, slug, thumbnail, content, demo_url, repo_url, is_featured, published_at, column_order, category_id, created_at, updated_at
 `
 
-func (q *Queries) DeleteProject(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteProject, id)
-	return err
+func (q *Queries) DeleteProject(ctx context.Context, id int64) (Project, error) {
+	row := q.db.QueryRowContext(ctx, deleteProject, id)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Thumbnail,
+		&i.Content,
+		&i.DemoUrl,
+		&i.RepoUrl,
+		&i.IsFeatured,
+		&i.PublishedAt,
+		&i.ColumnOrder,
+		&i.CategoryID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const deleteProjectTags = `-- name: DeleteProjectTags :exec
@@ -159,8 +175,9 @@ func (q *Queries) DeleteProjectTechStacks(ctx context.Context, projectID int64) 
 }
 
 const getCategoriesByIDs = `-- name: GetCategoriesByIDs :many
-SELECT id, name, slug, color, created_at, updated_at FROM categories
-WHERE id = ANY($1::int[])
+SELECT id, name, slug, color, created_at, updated_at
+FROM categories
+WHERE id = ANY ($1::int[])
 `
 
 func (q *Queries) GetCategoriesByIDs(ctx context.Context, categoryIds []int32) ([]Category, error) {
@@ -266,8 +283,8 @@ func (q *Queries) GetProjects(ctx context.Context) ([]Project, error) {
 const getTagsByProjectID = `-- name: GetTagsByProjectID :many
 SELECT project_tags.project_id, tags.id, tags.name, tags.slug, tags.color, tags.category_id, tags.created_at, tags.updated_at
 FROM tags
-JOIN project_tags ON tags.id = project_tags.tag_id
-WHERE project_tags.project_id = ANY($1::int[])
+         JOIN project_tags ON tags.id = project_tags.tag_id
+WHERE project_tags.project_id = ANY ($1::int[])
 `
 
 type GetTagsByProjectIDRow struct {
@@ -316,8 +333,8 @@ func (q *Queries) GetTagsByProjectID(ctx context.Context, projectIds []int32) ([
 const getTechStacksByProjectID = `-- name: GetTechStacksByProjectID :many
 SELECT project_tech_stacks.project_id, tech_stacks.id, tech_stacks.name, tech_stacks.slug, tech_stacks.icon, tech_stacks.column_order, tech_stacks.created_at, tech_stacks.updated_at
 FROM tech_stacks
-JOIN project_tech_stacks ON tech_stacks.id = project_tech_stacks.tech_stack_id
-WHERE project_tech_stacks.project_id = ANY($1::int[])
+         JOIN project_tech_stacks ON tech_stacks.id = project_tech_stacks.tech_stack_id
+WHERE project_tech_stacks.project_id = ANY ($1::int[])
 `
 
 type GetTechStacksByProjectIDRow struct {

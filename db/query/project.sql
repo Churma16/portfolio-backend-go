@@ -24,10 +24,10 @@ SET title       = $2,
     updated_at  = now()
 WHERE id = $1 RETURNING *;
 
--- name: DeleteProject :exec
+-- name: DeleteProject :one
 DELETE
 FROM projects
-WHERE id = $1;
+WHERE id = $1 RETURNING *;
 
 -- =============================================
 -- PIVOT TABLE QUERIES
