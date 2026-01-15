@@ -39,21 +39,25 @@ func (server *Server) createTag(ctx *gin.Context) {
 	var req CreateTagRequest
 	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var tagRequest CreateTagRequest
+	if err := ctx.ShouldBind(&tagRequest); err != nil {
 		return
 	}
 
 	// Prepare the parameters for creating a new tag
-	arguments := db.CreateTagParams{
-		Name:       req.Name,
-		Slug:       slug.Make(req.Name),
-		Color:      convertToNullString(req.Color),
-		CategoryID: sql.NullInt64{Int64: req.CategoryId, Valid: true},
+	createTagParams := db.CreateTagParams{
+		Name:       tagRequest.Name,
+		Slug:       slug.Make(tagRequest.Name),
+		Color:      convertToNullString(tagRequest.Color),
+		CategoryID: sql.NullInt64{Int64: tagRequest.CategoryId, Valid: true},
 	}
 
 	// Call the service to create a new tag
 	tag, err := server.store.CreateTag(ctx, arguments)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	createdTag, creationError := server.store.CreateTag(ctx, createTagParams)
+	if creationError != nil {
 		return
 	}
 
@@ -62,6 +66,9 @@ func (server *Server) createTag(ctx *gin.Context) {
 	meta := response.NewMeta(http.StatusOK, "success", "Tag berhasil dibuat")
 	resp := response.NewSingleDataResponse(meta, data)
 	ctx.JSON(http.StatusOK, resp)
+	responseData := tagResponse(createdTag)
+	responseMeta := response.NewMeta(http.StatusOK, "success", "Tag berhasil dibuat")
+	responsePayload := response.NewSingleDataResponse(responseMeta, responseData)
 }
 
 func (server *Server) showTags(ctx *gin.Context) {
@@ -69,6 +76,8 @@ func (server *Server) showTags(ctx *gin.Context) {
 	tags, err := server.store.GetTags(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Tags not found"})
+	allTags, retrievalError := server.store.GetTags(ctx)
+	if retrievalError != nil {
 		return
 	}
 
@@ -76,6 +85,9 @@ func (server *Server) showTags(ctx *gin.Context) {
 	meta := response.NewMetaWithCount(http.StatusOK, "success", "Tags ditemukan", len(tags))
 	resp := response.NewMultipleDataResponse(meta, data)
 	ctx.JSON(http.StatusOK, resp)
+	responseData := tagsResponses(allTags)
+	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Tags ditemukan", len(allTags))
+	responsePayload := response.NewMultipleDataResponse(responseMeta, responseData)
 }
 
 func (server *Server) showTag(ctx *gin.Context) {
@@ -84,6 +96,9 @@ func (server *Server) showTag(ctx *gin.Context) {
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+	tagIDParam := ctx.Param("id")
+	tagID, parseError := strconv.ParseInt(tagIDParam, 10, 64)
+	if parseError != nil {
 		return
 	}
 
@@ -91,6 +106,9 @@ func (server *Server) showTag(ctx *gin.Context) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+	tagDetails, retrievalError := server.store.GetTag(ctx, tagID)
+	if retrievalError != nil {
+		if retrievalError == sql.ErrNoRows {
 		} else {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		}
@@ -100,6 +118,9 @@ func (server *Server) showTag(ctx *gin.Context) {
 	meta := response.NewMeta(http.StatusOK, "success", "Tag ditemukan")
 	resp := response.NewSingleDataResponse(meta, data)
 	ctx.JSON(http.StatusOK, resp)
+	responseData := tagResponse(tagDetails)
+	responseMeta := response.NewMeta(http.StatusOK, "success", "Tag ditemukan")
+	responsePayload := response.NewSingleDataResponse(responseMeta, responseData)
 }
 
 func (server *Server) updateTag(ctx *gin.Context) {
