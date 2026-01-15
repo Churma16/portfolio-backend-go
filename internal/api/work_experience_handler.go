@@ -160,25 +160,10 @@ func (server *Server) showWorkExperiences(ctx *gin.Context) {
 		}
 		responseData = append(responseData, workExpItem)
 	}
+	util.DeleteCacheByPrefix(server.redisClient, "workExperiences:")
 	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Work Experiences retrieved successfully", len(responseData))
-	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, responseData))
-}
-
-func workExperienceResponse(workExperience db.WorkExperience) workExperienceData {
-	return workExperienceData{
-		Company:     workExperience.Company,
-		Position:    workExperience.Position,
-		Location:    workExperience.Location.String,
-		StartDate:   workExperience.StartDate.String,
-		EndDate:     workExperience.EndDate.String,
-		IsCurrent:   workExperience.IsCurrent.Bool,
-		Description: workExperience.Description.String,
-		CreatedAt:   workExperience.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   workExperience.UpdatedAt.Format("2006-01-02 15:04:05"),
-
-		TechStacks: nil,
-		Tags:       nil,
-	}
+	data := workExperiencesResponse(workExperiences)
+	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, data))
 }
 
 func (server *Server) showWorkExperience(ctx *gin.Context) {
@@ -297,6 +282,23 @@ func (server *Server) deleteWorkExperience(ctx *gin.Context) {
 	meta := response.NewMeta(http.StatusOK, "success", "Work Experience deleted successfully")
 	data := projectResponse(deletedWorkExp)
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
+}
+
+func workExperienceResponse(workExperience db.WorkExperience) workExperienceData {
+	return workExperienceData{
+		Company:     workExperience.Company,
+		Position:    workExperience.Position,
+		Location:    workExperience.Location.String,
+		StartDate:   workExperience.StartDate.String,
+		EndDate:     workExperience.EndDate.String,
+		IsCurrent:   workExperience.IsCurrent.Bool,
+		Description: workExperience.Description.String,
+		CreatedAt:   workExperience.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   workExperience.UpdatedAt.Format("2006-01-02 15:04:05"),
+
+		TechStacks: nil,
+		Tags:       nil,
+	}
 }
 
 func workExperiencesResponse(workExperiences []db.WorkExperience) []workExperienceData {
