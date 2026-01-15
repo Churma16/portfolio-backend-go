@@ -28,6 +28,7 @@ type workExperienceRequest struct {
 }
 
 type workExperienceData struct {
+	ID          int64  `json:"id"`
 	Company     string `json:"company"`
 	Position    string `json:"position"`
 	Location    string `json:"location"`
@@ -108,13 +109,13 @@ func (server *Server) showWorkExperiences(ctx *gin.Context) {
 	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
 	if cacheErr == nil {
 		// Cache hit: Data found in Redis
-		var cachedProjects []projectData
-		unmarshalErr := json.Unmarshal([]byte(cacheValue), &cachedProjects)
+		var cachedWorkExperiences []workExperienceData
+		unmarshalErr := json.Unmarshal([]byte(cacheValue), &cachedWorkExperiences)
 
 		if unmarshalErr == nil {
 			// Return cached data to the user
-			meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved (Cached)", len(cachedProjects))
-			ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, cachedProjects))
+			meta := response.NewMetaWithCount(http.StatusOK, "success", "List Work Experiences retrieved (Cached)", len(cachedWorkExperiences))
+			ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, cachedWorkExperiences))
 			return
 		}
 	}
@@ -223,7 +224,7 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 	tagLookup := make(map[int64][]TagData)
 
 	if strings.Contains(queryParam, "techStacks") {
-		techStackResults, techStackError := server.store.GetTechStacksByProjectID(ctx, []int32{int32(workExperience.ID)})
+		techStackResults, techStackError := server.store.GetTechStacksByWorkExperienceID(ctx, []int32{int32(workExperience.ID)})
 		if techStackError == nil {
 			for _, techStackRow := range techStackResults {
 				techStackData := TechStackData{
@@ -232,13 +233,13 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 					Slug: techStackRow.Slug,
 					Icon: techStackRow.Icon.String,
 				}
-				techStackLookup[techStackRow.ProjectID] = append(techStackLookup[techStackRow.ProjectID], techStackData)
+				techStackLookup[techStackRow.WorkExperienceID] = append(techStackLookup[techStackRow.WorkExperienceID], techStackData)
 			}
 		}
 	}
 
 	if strings.Contains(queryParam, "tags") {
-		tagResults, tagError := server.store.GetTagsByProjectID(ctx, []int32{int32(workExperience.ID)})
+		tagResults, tagError := server.store.GetTagsByWorkExperienceID(ctx, []int32{int32(workExperience.ID)})
 		if tagError == nil {
 			for _, tagRow := range tagResults {
 				tagData := TagData{
@@ -247,7 +248,7 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 					Slug:  tagRow.Slug,
 					Color: tagRow.Color.String,
 				}
-				tagLookup[tagRow.ProjectID] = append(tagLookup[tagRow.ProjectID], tagData)
+				tagLookup[tagRow.WorkExperienceID] = append(tagLookup[tagRow.WorkExperienceID], tagData)
 			}
 		}
 	}
@@ -262,11 +263,11 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 		workExperienceItem.Tags = tags
 	}
 
-	cachedJsonData, _ := json.Marshal(workExperience)
+	cachedJsonData, _ := json.Marshal(workExperienceItem)
 	server.redisClient.Set(ctx, cacheKey, cachedJsonData, 1*time.Hour)
 
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Work experience retrieved successfully")
-	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, workExperience))
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, workExperienceItem))
 }
 
 func (server *Server) updateWorkExperience(ctx *gin.Context) {
@@ -353,7 +354,7 @@ func (server *Server) deleteWorkExperience(ctx *gin.Context) {
 		return
 	}
 
-	deletedWorkExp, err := server.store.DeleteProject(ctx, id)
+	deletedWorkExp, err := server.store.DeleteWorkExperience(ctx, id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -361,12 +362,13 @@ func (server *Server) deleteWorkExperience(ctx *gin.Context) {
 
 	util.DeleteCacheByPrefix(server.redisClient, "workExperiences:")
 	meta := response.NewMeta(http.StatusOK, "success", "Work Experience deleted successfully")
-	data := projectResponse(deletedWorkExp)
+	data := workExperienceResponse(deletedWorkExp)
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
 }
 
 func workExperienceResponse(workExperience db.WorkExperience) workExperienceData {
 	return workExperienceData{
+		ID:          workExperience.ID,
 		Company:     workExperience.Company,
 		Position:    workExperience.Position,
 		Location:    workExperience.Location.String,
