@@ -342,46 +342,46 @@ func (server *Server) showProject(context *gin.Context) {
 	context.JSON(http.StatusOK, response.NewSingleDataResponse(responseMetadata, projectItem))
 }
 func (server *Server) updateProject(ctx *gin.Context) {
-	// 1. Ambil ID dari URL (/projects/:id)
-	var uri struct {
+	// 1. Extract Project ID from URL (/projects/:id)
+	var projectID struct {
 		ID int64 `uri:"id" binding:"required"`
 	}
-	if err := ctx.ShouldBindUri(&uri); err != nil {
+	if err := ctx.ShouldBindUri(&projectID); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 2. Bind Data Form (Reuse struct createProjectRequest)
-	var req createProjectRequest
-	if err := ctx.ShouldBind(&req); err != nil {
+	// 2. Parse Form Data (Reuse struct createProjectRequest)
+	var projectData createProjectRequest
+	if err := ctx.ShouldBind(&projectData); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 3. Cek Data Lama (Buat ambil Thumbnail lama kalau user ga upload baru)
-	oldProject, err := server.store.GetProject(ctx, uri.ID)
+	// 3. Retrieve Existing Project Data (Needed for old thumbnail if no new upload)
+	existingProject, err := server.store.GetProject(ctx, projectID.ID)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		return
 	}
 
-	// 4. Handle Thumbnail (Ganti Baru atau Pakai Lama?)
-	finalThumbnail := oldProject.Thumbnail.String
-	file, err := ctx.FormFile("thumbnail")
+	// 4. Handle Thumbnail (Use new upload or fallback to old thumbnail)
+	thumbnailURL := existingProject.Thumbnail.String
+	uploadedFile, err := ctx.FormFile("thumbnail")
 	if err == nil {
-		// User upload baru
-		folderName := "projects"
-		url, errSave := util.SaveUploadedFile(ctx, file, folderName)
-		if errSave != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload thumbnail"})
+		// New thumbnail uploaded
+		const folderName = "projects"
+		url, saveErr := util.SaveUploadedFile(ctx, uploadedFile, folderName)
+		if saveErr != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload thumbnail"})
 			return
 		}
-		finalThumbnail = url
+		thumbnailURL = url
 	}
 
-	// 5. Parse Array IDs
-	techStackIDs, _ := util.ParseStringToIntArray(req.TechStackIDs)
-	tagIDs, _ := util.ParseStringToIntArray(req.TagIDs)
+	// 5. Convert Array IDs from Strings to Integers
+	techStackIDs, _ := util.ParseStringToIntArray(projectData.TechStackIDs)
+	tagIDs, _ := util.ParseStringToIntArray(projectData.TagIDs)
 
 	// 6. TRANSACTION BLOCK (Wipe & Replace Strategy)
 	var updatedProject db.Project
@@ -389,53 +389,46 @@ func (server *Server) updateProject(ctx *gin.Context) {
 	errTx := server.store.ExecTx(ctx, func(q *db.Queries) error {
 		var err error
 
-		// A. Update Data Utama Project
-		arg := db.UpdateProjectParams{
-			ID:         uri.ID,
-			Title:      req.Title,
-			Slug:       slug.Make(req.Title),
-			Content:    convertToNullString(req.Content),
-			Thumbnail:  convertToNullString(finalThumbnail),
-			RepoUrl:    convertToNullString(req.RepoUrl), // Sesuaikan field
-			DemoUrl:    convertToNullString(req.DemoUrl), // Sesuaikan field
-			CategoryID: sql.NullInt64{Int64: req.CategoryID, Valid: true},
+		// A. Update Main Project Data
+		updateArgs := db.UpdateProjectParams{
+			ID:         projectID.ID,
+			Title:      projectData.Title,
+			Slug:       slug.Make(projectData.Title),
+			Content:    convertToNullString(projectData.Content),
+			Thumbnail:  convertToNullString(thumbnailURL),
+			RepoUrl:    convertToNullString(projectData.RepoUrl),
+			DemoUrl:    convertToNullString(projectData.DemoUrl),
+			CategoryID: sql.NullInt64{Int64: projectData.CategoryID, Valid: true},
 		}
 
-		updatedProject, err = q.UpdateProject(ctx, arg)
+		updatedProject, err = q.UpdateProject(ctx, updateArgs)
 		if err != nil {
 			return err
 		}
 
-		// B. WIPE: Hapus Semua Relasi Lama
-		err = q.DeleteProjectTechStacks(ctx, uri.ID)
-		if err != nil {
+		// B. WIPE: Remove All Old Relationships
+		if err = q.DeleteProjectTechStacks(ctx, projectID.ID); err != nil {
+			return err
+		}
+		if err = q.DeleteProjectTags(ctx, projectID.ID); err != nil {
 			return err
 		}
 
-		err = q.DeleteProjectTags(ctx, uri.ID)
-		if err != nil {
-			return err
-		}
-
-		// C. REPLACE: Insert Ulang Relasi Baru (Sama kayak Create)
-		// Loop Tech Stack
-		for _, tsID := range techStackIDs {
-			err = q.AddTechStackToProject(ctx, db.AddTechStackToProjectParams{
-				ProjectID:   uri.ID,
-				TechStackID: tsID, // Cast int32
-			})
-			if err != nil {
+		// C. REPLACE: Insert New Relationships (Similar to Create)
+		for _, techStackID := range techStackIDs {
+			if err = q.AddTechStackToProject(ctx, db.AddTechStackToProjectParams{
+				ProjectID:   projectID.ID,
+				TechStackID: techStackID,
+			}); err != nil {
 				return err
 			}
 		}
 
-		// Loop Tags
-		for _, tID := range tagIDs {
-			err = q.AddTagToProject(ctx, db.AddTagToProjectParams{
-				ProjectID: uri.ID,
-				TagID:     tID, // Cast int32
-			})
-			if err != nil {
+		for _, tagID := range tagIDs {
+			if err = q.AddTagToProject(ctx, db.AddTagToProjectParams{
+				ProjectID: projectID.ID,
+				TagID:     tagID,
+			}); err != nil {
 				return err
 			}
 		}
@@ -449,9 +442,9 @@ func (server *Server) updateProject(ctx *gin.Context) {
 	}
 
 	// 7. Return Response
-	rsp := projectResponse(updatedProject)
-	meta := response.NewMeta(http.StatusOK, "success", "Project updated successfully")
-	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, rsp))
+	responseData := projectResponse(updatedProject)
+	responseMeta := response.NewMeta(http.StatusOK, "success", "Project updated successfully")
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
 func projectResponse(project db.Project) projectData {
