@@ -49,64 +49,65 @@ type projectData struct {
 func (server *Server) createProject(ctx *gin.Context) {
 	println("\n\n========== CREATE PROJECT DEBUG START ==========")
 	println("STEP 1: Checking Content-Type")
-	contentType := ctx.Request.Header.Get("Content-Type")
-	println("  Content-Type:", contentType)
+	contentTypeHeader := ctx.Request.Header.Get("Content-Type")
+	println("  Content-Type:", contentTypeHeader)
 
-	//  Handle Upload Thumbnail
-	var req createProjectRequest
+	// Handle Upload Thumbnail
+	var projectRequest createProjectRequest
 	println("STEP 2: Attempting to ShouldBind()")
-	if err := ctx.ShouldBind(&req); err != nil {
+	if err := ctx.ShouldBind(&projectRequest); err != nil {
 		println("  ERROR BINDING:", err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		println("========== CREATE PROJECT DEBUG END (ERROR BINDING) ==========\n\n")
 		return
 	}
 	println("  ✓ ShouldBind SUCCESS")
-	println("  Parsed title:", req.Title)
+	println("  Parsed title:", projectRequest.Title)
 
 	println("STEP 3: Attempting to get thumbnail file")
-	var thumbnailURL string
-	file, err := ctx.FormFile("thumbnail")
-	folderName := "projects"
-	if err == nil {
+	var thumbnailFileURL string
+
+	uploadedThumbnailFile, fileError := ctx.FormFile("thumbnail")
+	projectFolderName := "projects"
+	if fileError == nil {
 		println("  ✓ Thumbnail file found!")
-		println("  Thumbnail filename:", file.Filename)
-		println("  Thumbnail size:", file.Size)
+		println("  Thumbnail filename:", uploadedThumbnailFile.Filename)
+		println("  Thumbnail size:", uploadedThumbnailFile.Size)
 
 		println("  Calling SaveUploadedFile for thumbnail...")
-		url, errSave := util.SaveUploadedFile(ctx, file, folderName)
-		if errSave != nil {
-			println("  ERROR saving thumbnail:", errSave.Error())
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload thumbnail"})
+		savedThumbnailURL, saveError := util.SaveUploadedFile(ctx, uploadedThumbnailFile, projectFolderName)
+		if saveError != nil {
+			println("  ERROR saving thumbnail:", saveError.Error())
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload thumbnail"})
 			println("========== CREATE PROJECT DEBUG END (THUMBNAIL ERROR) ==========\n\n")
 			return
 		}
-		thumbnailURL = url
-		println("  ✓ Thumbnail saved with URL:", thumbnailURL)
+		thumbnailFileURL = savedThumbnailURL
+		println("  ✓ Thumbnail saved with URL:", thumbnailFileURL)
 	} else {
-		println("  ✗ Thumbnail NOT found:", err.Error())
+		println("  ✗ Thumbnail NOT found:", fileError.Error())
 	}
 
-	techStackIDs, _ := util.ParseStringToIntArray(req.TechStackIDs)
-	tagIDs, _ := util.ParseStringToIntArray(req.TagIDs)
+	techStackIDs, _ := util.ParseStringToIntArray(projectRequest.TechStackIDs)
+	tagIDs, _ := util.ParseStringToIntArray(projectRequest.TagIDs)
 
 	// 3. TRANSACTION BLOCK (ExecTx)
-	var createdProject db.Project
+	var newProject db.Project
 	transactionError := server.store.ExecTx(ctx, func(queries *db.Queries) error {
 		var executionError error
 
 		// A. Insert Main Project
-		projectParams := db.CreateProjectParams{
-			Title:      req.Title,
-			Slug:       slug.Make(req.Title),
-			Content:    convertToNullString(req.Content),
-			Thumbnail:  convertToNullString(thumbnailURL),
-			RepoUrl:    convertToNullString(req.RepoUrl),
-			DemoUrl:    convertToNullString(req.DemoUrl),
-			CategoryID: sql.NullInt64{Int64: req.CategoryID, Valid: true},
+		createProjectParams := db.CreateProjectParams{
+			Title:      projectRequest.Title,
+			Slug:       slug.Make(projectRequest.Title),
+			Content:    convertToNullString(projectRequest.Content),
+			Thumbnail:  convertToNullString(thumbnailFileURL),
+			RepoUrl:    convertToNullString(projectRequest.RepoUrl),
+			DemoUrl:    convertToNullString(projectRequest.DemoUrl),
+			CategoryID: sql.NullInt64{Int64: projectRequest.CategoryID, Valid: true},
 		}
 
-		createdProject, executionError = queries.CreateProject(ctx, projectParams)
+		newProject, executionError = queries.CreateProject(ctx, createProjectParams)
 		if executionError != nil {
 			return executionError
 		}
@@ -114,8 +115,8 @@ func (server *Server) createProject(ctx *gin.Context) {
 		// B. Loop & Insert Tech Stacks (Pivot)
 		for _, techStackID := range techStackIDs {
 			executionError = queries.AddTechStackToProject(ctx, db.AddTechStackToProjectParams{
-				ProjectID:   createdProject.ID,
-				TechStackID: techStackID, // Cast to int64 if SQLC generates int64
+				ProjectID:   newProject.ID,
+				TechStackID: techStackID,
 			})
 			if executionError != nil {
 				return executionError
@@ -125,8 +126,8 @@ func (server *Server) createProject(ctx *gin.Context) {
 		// C. Loop & Insert Tags (Pivot)
 		for _, tagID := range tagIDs {
 			executionError = queries.AddTagToProject(ctx, db.AddTagToProjectParams{
-				ProjectID: createdProject.ID,
-				TagID:     tagID, // Cast to int64
+				ProjectID: newProject.ID,
+				TagID:     tagID,
 			})
 			if executionError != nil {
 				return executionError
@@ -144,13 +145,13 @@ func (server *Server) createProject(ctx *gin.Context) {
 	}
 
 	println("STEP 4: Project created successfully")
-	println("  Project ID:", createdProject.ID)
-	println("  Project thumbnail from DB:", createdProject.Thumbnail.String)
+	println("  Project ID:", newProject.ID)
+	println("  Project thumbnail from DB:", newProject.Thumbnail.String)
 
-	data := projectResponse(createdProject)
-	meta := response.NewMeta(http.StatusOK, "success", "Project created successfully")
+	responseData := projectResponse(newProject)
+	responseMeta := response.NewMeta(http.StatusOK, "success", "Project created successfully")
 	println("========== CREATE PROJECT DEBUG END (SUCCESS) ==========\n\n")
-	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
 }
 
 func (server *Server) showProjects(context *gin.Context) {
@@ -165,13 +166,13 @@ func (server *Server) showProjects(context *gin.Context) {
 
 	// 2. Collect IDs
 	// Collect project IDs and category IDs for batch queries
-	var projectIDList []int32
-	var categoryIDList []int32
+	projectIDs := []int32{}
+	categoryIDs := []int32{}
 
 	for _, project := range projects {
-		projectIDList = append(projectIDList, int32(project.ID))
+		projectIDs = append(projectIDs, int32(project.ID))
 		if project.CategoryID.Valid {
-			categoryIDList = append(categoryIDList, int32(project.CategoryID.Int64))
+			categoryIDs = append(categoryIDs, int32(project.CategoryID.Int64))
 		}
 	}
 
@@ -182,8 +183,8 @@ func (server *Server) showProjects(context *gin.Context) {
 	categoryLookup := make(map[int64]*db.Category)     // Key: CategoryID, Value: Category
 
 	// --- Batch Query: Categories ---
-	if strings.Contains(queryParam, "category") && len(categoryIDList) > 0 {
-		categories, categoryError := server.store.GetCategoriesByIDs(context, categoryIDList)
+	if strings.Contains(queryParam, "category") && len(categoryIDs) > 0 {
+		categories, categoryError := server.store.GetCategoriesByIDs(context, categoryIDs)
 		if categoryError == nil {
 			for _, category := range categories {
 				categoryCopy := category // Copy variable to ensure pointer safety
@@ -193,8 +194,8 @@ func (server *Server) showProjects(context *gin.Context) {
 	}
 
 	// --- Batch Query: Tech Stacks ---
-	if strings.Contains(queryParam, "techStacks") && len(projectIDList) > 0 {
-		techStackResults, techStackError := server.store.GetTechStacksByProjectID(context, projectIDList)
+	if strings.Contains(queryParam, "techStacks") && len(projectIDs) > 0 {
+		techStackResults, techStackError := server.store.GetTechStacksByProjectID(context, projectIDs)
 		if techStackError == nil {
 			for _, techStackRow := range techStackResults {
 				// Convert row to response struct
@@ -212,8 +213,8 @@ func (server *Server) showProjects(context *gin.Context) {
 	}
 
 	// --- Batch Query: Tags ---
-	if strings.Contains(queryParam, "tags") && len(projectIDList) > 0 {
-		tagResults, tagError := server.store.GetTagsByProjectID(context, projectIDList)
+	if strings.Contains(queryParam, "tags") && len(projectIDs) > 0 {
+		tagResults, tagError := server.store.GetTagsByProjectID(context, projectIDs)
 		if tagError == nil {
 			for _, tagRow := range tagResults {
 				tagData := TagData{
@@ -352,8 +353,8 @@ func (server *Server) updateProject(ctx *gin.Context) {
 	}
 
 	// 2. Parse Form Data (Reuse struct createProjectRequest)
-	var projectData createProjectRequest
-	if err := ctx.ShouldBind(&projectData); err != nil {
+	var req createProjectRequest
+	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -380,8 +381,8 @@ func (server *Server) updateProject(ctx *gin.Context) {
 	}
 
 	// 5. Convert Array IDs from Strings to Integers
-	techStackIDs, _ := util.ParseStringToIntArray(projectData.TechStackIDs)
-	tagIDs, _ := util.ParseStringToIntArray(projectData.TagIDs)
+	techStackIDs, _ := util.ParseStringToIntArray(req.TechStackIDs)
+	tagIDs, _ := util.ParseStringToIntArray(req.TagIDs)
 
 	// 6. TRANSACTION BLOCK (Wipe & Replace Strategy)
 	var updatedProject db.Project
@@ -392,13 +393,13 @@ func (server *Server) updateProject(ctx *gin.Context) {
 		// A. Update Main Project Data
 		updateArgs := db.UpdateProjectParams{
 			ID:         projectID.ID,
-			Title:      projectData.Title,
-			Slug:       slug.Make(projectData.Title),
-			Content:    convertToNullString(projectData.Content),
+			Title:      req.Title,
+			Slug:       slug.Make(req.Title),
+			Content:    convertToNullString(req.Content),
 			Thumbnail:  convertToNullString(thumbnailURL),
-			RepoUrl:    convertToNullString(projectData.RepoUrl),
-			DemoUrl:    convertToNullString(projectData.DemoUrl),
-			CategoryID: sql.NullInt64{Int64: projectData.CategoryID, Valid: true},
+			RepoUrl:    convertToNullString(req.RepoUrl),
+			DemoUrl:    convertToNullString(req.DemoUrl),
+			CategoryID: sql.NullInt64{Int64: req.CategoryID, Valid: true},
 		}
 
 		updatedProject, err = q.UpdateProject(ctx, updateArgs)
