@@ -2,12 +2,14 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -102,6 +104,21 @@ func (server *Server) createWorkExperience(ctx *gin.Context) {
 }
 
 func (server *Server) showWorkExperiences(ctx *gin.Context) {
+	cacheKey := "workExperiences:list:" + ctx.Request.URL.RequestURI()
+	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
+	if cacheErr == nil {
+		// Cache hit: Data found in Redis
+		var cachedProjects []projectData
+		unmarshalErr := json.Unmarshal([]byte(cacheValue), &cachedProjects)
+
+		if unmarshalErr == nil {
+			// Return cached data to the user
+			meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved (Cached)", len(cachedProjects))
+			ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, cachedProjects))
+			return
+		}
+	}
+
 	queryParam := ctx.Query("with")
 
 	workExperiences, retrievalError := server.store.GetWorkExperiences(ctx)
@@ -160,13 +177,31 @@ func (server *Server) showWorkExperiences(ctx *gin.Context) {
 		}
 		responseData = append(responseData, workExpItem)
 	}
-	util.DeleteCacheByPrefix(server.redisClient, "workExperiences:")
+
+	cachedJsonData, _ := json.Marshal(responseData)
+	server.redisClient.Set(ctx, cacheKey, cachedJsonData, 1*time.Hour)
+
 	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Work Experiences retrieved successfully", len(responseData))
-	data := workExperiencesResponse(workExperiences)
-	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, data))
+	//data := workExperiencesResponse(workExperiences)
+	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, responseData))
 }
 
 func (server *Server) showWorkExperience(ctx *gin.Context) {
+
+	cacheKey := "workExperiences:single:" + ctx.Request.URL.RequestURI()
+	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
+	if cacheErr == nil {
+		// Cache hit: Data found in Redis
+		var cachedProjects []projectData
+		unmarshalErr := json.Unmarshal([]byte(cacheValue), &cachedProjects)
+
+		if unmarshalErr == nil {
+			// Return cached data to the user
+			meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved (Cached)", len(cachedProjects))
+			ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, cachedProjects))
+			return
+		}
+	}
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
@@ -259,6 +294,7 @@ func (server *Server) updateWorkExperience(ctx *gin.Context) {
 	}
 
 	util.DeleteCacheByPrefix(server.redisClient, "workExperiences:")
+
 	meta := response.NewMeta(http.StatusOK, "success", "Work experience updated successfully")
 	data := workExperienceResponse(updatedWorkExp)
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
