@@ -192,13 +192,12 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
 	if cacheErr == nil {
 		// Cache hit: Data found in Redis
-		var cachedProjects []projectData
-		unmarshalErr := json.Unmarshal([]byte(cacheValue), &cachedProjects)
-
+		var cachedWorkExperience workExperienceData
+		unmarshalErr := json.Unmarshal([]byte(cacheValue), &cachedWorkExperience)
 		if unmarshalErr == nil {
 			// Return cached data to the user
-			meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved (Cached)", len(cachedProjects))
-			ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, cachedProjects))
+			meta := response.NewMeta(http.StatusOK, "success", "Work experience retrieved successfully (Cached)")
+			ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, cachedWorkExperience))
 			return
 		}
 	}
@@ -208,7 +207,9 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
+	queryParam := ctx.Query("with")
 
+	// Retrieve work experience
 	workExperience, err := server.store.GetWorkExperience(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -218,10 +219,54 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 		}
 		return
 	}
+	techStackLookup := make(map[int64][]TechStackData)
+	tagLookup := make(map[int64][]TagData)
 
-	responseData := workExperienceResponse(workExperience)
+	if strings.Contains(queryParam, "techStacks") {
+		techStackResults, techStackError := server.store.GetTechStacksByProjectID(ctx, []int32{int32(workExperience.ID)})
+		if techStackError == nil {
+			for _, techStackRow := range techStackResults {
+				techStackData := TechStackData{
+					ID:   techStackRow.ID,
+					Name: techStackRow.Name,
+					Slug: techStackRow.Slug,
+					Icon: techStackRow.Icon.String,
+				}
+				techStackLookup[techStackRow.ProjectID] = append(techStackLookup[techStackRow.ProjectID], techStackData)
+			}
+		}
+	}
+
+	if strings.Contains(queryParam, "tags") {
+		tagResults, tagError := server.store.GetTagsByProjectID(ctx, []int32{int32(workExperience.ID)})
+		if tagError == nil {
+			for _, tagRow := range tagResults {
+				tagData := TagData{
+					ID:    tagRow.ID,
+					Name:  tagRow.Name,
+					Slug:  tagRow.Slug,
+					Color: tagRow.Color.String,
+				}
+				tagLookup[tagRow.ProjectID] = append(tagLookup[tagRow.ProjectID], tagData)
+			}
+		}
+	}
+	workExperienceItem := workExperienceResponse(workExperience)
+
+	// Attach TechStacks
+	if techStacks, exists := techStackLookup[workExperience.ID]; exists {
+		workExperienceItem.TechStacks = techStacks
+	}
+	// Attach Tags
+	if tags, exists := tagLookup[workExperience.ID]; exists {
+		workExperienceItem.Tags = tags
+	}
+
+	cachedJsonData, _ := json.Marshal(workExperience)
+	server.redisClient.Set(ctx, cacheKey, cachedJsonData, 1*time.Hour)
+
 	responseMeta := response.NewMeta(http.StatusOK, "success", "Work experience retrieved successfully")
-	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, responseData))
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(responseMeta, workExperience))
 }
 
 func (server *Server) updateWorkExperience(ctx *gin.Context) {
