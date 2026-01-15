@@ -8,7 +8,40 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
+
+	"github.com/lib/pq"
 )
+
+const addTagToWorkExperience = `-- name: AddTagToWorkExperience :exec
+INSERT INTO work_experience_tags (work_experience_id, tag_id)
+VALUES ($1, $2)
+`
+
+type AddTagToWorkExperienceParams struct {
+	WorkExperienceID int64 `json:"work_experience_id"`
+	TagID            int64 `json:"tag_id"`
+}
+
+func (q *Queries) AddTagToWorkExperience(ctx context.Context, arg AddTagToWorkExperienceParams) error {
+	_, err := q.db.ExecContext(ctx, addTagToWorkExperience, arg.WorkExperienceID, arg.TagID)
+	return err
+}
+
+const addTechStackToWorkExperience = `-- name: AddTechStackToWorkExperience :exec
+INSERT INTO work_experience_tech_stacks (work_experience_id, tech_stack_id)
+VALUES ($1, $2)
+`
+
+type AddTechStackToWorkExperienceParams struct {
+	WorkExperienceID int64 `json:"work_experience_id"`
+	TechStackID      int64 `json:"tech_stack_id"`
+}
+
+func (q *Queries) AddTechStackToWorkExperience(ctx context.Context, arg AddTechStackToWorkExperienceParams) error {
+	_, err := q.db.ExecContext(ctx, addTechStackToWorkExperience, arg.WorkExperienceID, arg.TechStackID)
+	return err
+}
 
 const attachTagToWorkExperience = `-- name: AttachTagToWorkExperience :exec
 INSERT INTO work_experience_tags (work_experience_id, tag_id)
@@ -26,6 +59,7 @@ func (q *Queries) AttachTagToWorkExperience(ctx context.Context, arg AttachTagTo
 }
 
 const attachTechStackToWorkExperience = `-- name: AttachTechStackToWorkExperience :exec
+    
 INSERT INTO work_experience_tech_stacks (work_experience_id, tech_stack_id)
 VALUES ($1, $2)
 `
@@ -35,6 +69,9 @@ type AttachTechStackToWorkExperienceParams struct {
 	TechStackID      int64 `json:"tech_stack_id"`
 }
 
+// =============================================
+// PIVOT TABLE QUERIES
+// =============================================
 func (q *Queries) AttachTechStackToWorkExperience(ctx context.Context, arg AttachTechStackToWorkExperienceParams) error {
 	_, err := q.db.ExecContext(ctx, attachTechStackToWorkExperience, arg.WorkExperienceID, arg.TechStackID)
 	return err
@@ -79,6 +116,152 @@ func (q *Queries) CreateWorkExperience(ctx context.Context, arg CreateWorkExperi
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deleteWorkExperience = `-- name: DeleteWorkExperience :one
+DELETE
+FROM work_experiences
+WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
+`
+
+func (q *Queries) DeleteWorkExperience(ctx context.Context, id int64) (WorkExperience, error) {
+	row := q.db.QueryRowContext(ctx, deleteWorkExperience, id)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.Company,
+		&i.Position,
+		&i.Location,
+		&i.StartDate,
+		&i.EndDate,
+		&i.IsCurrent,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteWorkExperienceTags = `-- name: DeleteWorkExperienceTags :exec
+DELETE
+FROM work_experience_tags
+WHERE work_experience_id = $1
+`
+
+func (q *Queries) DeleteWorkExperienceTags(ctx context.Context, workExperienceID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteWorkExperienceTags, workExperienceID)
+	return err
+}
+
+const deleteWorkExperienceTechStacks = `-- name: DeleteWorkExperienceTechStacks :exec
+DELETE
+FROM work_experience_tech_stacks
+WHERE work_experience_id = $1
+`
+
+func (q *Queries) DeleteWorkExperienceTechStacks(ctx context.Context, workExperienceID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteWorkExperienceTechStacks, workExperienceID)
+	return err
+}
+
+const getTagsByWorkExperienceID = `-- name: GetTagsByWorkExperienceID :many
+SELECT work_experience_tags.work_experience_id, tags.id, tags.name, tags.slug, tags.color, tags.category_id, tags.created_at, tags.updated_at
+FROM tags
+         JOIN work_experience_tags ON tags.id = work_experience_tags.tag_id
+WHERE work_experience_tags.work_experience_id = ANY ($1::int[])
+`
+
+type GetTagsByWorkExperienceIDRow struct {
+	WorkExperienceID int64          `json:"work_experience_id"`
+	ID               int64          `json:"id"`
+	Name             string         `json:"name"`
+	Slug             string         `json:"slug"`
+	Color            sql.NullString `json:"color"`
+	CategoryID       sql.NullInt64  `json:"category_id"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+}
+
+func (q *Queries) GetTagsByWorkExperienceID(ctx context.Context, workExperienceIds []int32) ([]GetTagsByWorkExperienceIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTagsByWorkExperienceID, pq.Array(workExperienceIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTagsByWorkExperienceIDRow
+	for rows.Next() {
+		var i GetTagsByWorkExperienceIDRow
+		if err := rows.Scan(
+			&i.WorkExperienceID,
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Color,
+			&i.CategoryID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTechStacksByWorkExperienceID = `-- name: GetTechStacksByWorkExperienceID :many
+SELECT work_experience_tech_stacks.work_experience_id, tech_stacks.id, tech_stacks.name, tech_stacks.slug, tech_stacks.icon, tech_stacks.column_order, tech_stacks.created_at, tech_stacks.updated_at
+FROM tech_stacks
+         JOIN work_experience_tech_stacks ON tech_stacks.id = work_experience_tech_stacks.tech_stack_id
+WHERE work_experience_tech_stacks.work_experience_id = ANY ($1::int[])
+`
+
+type GetTechStacksByWorkExperienceIDRow struct {
+	WorkExperienceID int64          `json:"work_experience_id"`
+	ID               int64          `json:"id"`
+	Name             string         `json:"name"`
+	Slug             string         `json:"slug"`
+	Icon             sql.NullString `json:"icon"`
+	ColumnOrder      int32          `json:"column_order"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+}
+
+func (q *Queries) GetTechStacksByWorkExperienceID(ctx context.Context, workExperienceIds []int32) ([]GetTechStacksByWorkExperienceIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTechStacksByWorkExperienceID, pq.Array(workExperienceIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTechStacksByWorkExperienceIDRow
+	for rows.Next() {
+		var i GetTechStacksByWorkExperienceIDRow
+		if err := rows.Scan(
+			&i.WorkExperienceID,
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Icon,
+			&i.ColumnOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getWorkExperiences = `-- name: GetWorkExperiences :one
@@ -143,4 +326,55 @@ func (q *Queries) ListWorkExperiences(ctx context.Context) ([]WorkExperience, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateWorkExperience = `-- name: UpdateWorkExperience :one
+update work_experiences
+set company     = $2,
+    position    = $3,
+    location    = $4,
+    start_date  = $5,
+    end_date    = $6,
+    is_current  = $7,
+    description = $8,
+    updated_at  = now()
+where id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
+`
+
+type UpdateWorkExperienceParams struct {
+	ID          int64          `json:"id"`
+	Company     string         `json:"company"`
+	Position    string         `json:"position"`
+	Location    sql.NullString `json:"location"`
+	StartDate   sql.NullString `json:"start_date"`
+	EndDate     sql.NullString `json:"end_date"`
+	IsCurrent   sql.NullBool   `json:"is_current"`
+	Description sql.NullString `json:"description"`
+}
+
+func (q *Queries) UpdateWorkExperience(ctx context.Context, arg UpdateWorkExperienceParams) (WorkExperience, error) {
+	row := q.db.QueryRowContext(ctx, updateWorkExperience,
+		arg.ID,
+		arg.Company,
+		arg.Position,
+		arg.Location,
+		arg.StartDate,
+		arg.EndDate,
+		arg.IsCurrent,
+		arg.Description,
+	)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.Company,
+		&i.Position,
+		&i.Location,
+		&i.StartDate,
+		&i.EndDate,
+		&i.IsCurrent,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
