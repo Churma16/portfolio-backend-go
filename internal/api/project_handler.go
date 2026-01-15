@@ -157,18 +157,18 @@ func (server *Server) createProject(ctx *gin.Context) {
 }
 
 func (server *Server) showProjects(context *gin.Context) {
+	// Improved variable readability for Redis caching logic
 	cacheKey := "projects:list:" + context.Request.URL.RequestURI()
-	val, err := server.redisClient.Get(context, cacheKey).Result()
-	if err == nil {
-		// HORE! Data ada di Redis.
-		// Kita unmarshal JSON string dari Redis balik ke struct Go
-		var projectsData []projectData
-		errUnmarshal := json.Unmarshal([]byte(val), &projectsData)
+	cacheValue, cacheErr := server.redisClient.Get(context, cacheKey).Result()
+	if cacheErr == nil {
+		// Cache hit: Data found in Redis
+		var cachedProjects []projectData
+		unmarshalErr := json.Unmarshal([]byte(cacheValue), &cachedProjects)
 
-		if errUnmarshal == nil {
-			// Langsung Return ke User (Database gak disentuh sama sekali!)
-			meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved (Cached)", len(projectsData))
-			context.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, projectsData))
+		if unmarshalErr == nil {
+			// Return cached data to the user
+			meta := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved (Cached)", len(cachedProjects))
+			context.JSON(http.StatusOK, response.NewMultipleDataResponse(meta, cachedProjects))
 			return
 		}
 	}
@@ -269,8 +269,10 @@ func (server *Server) showProjects(context *gin.Context) {
 
 		projectResponseList = append(projectResponseList, projectItem)
 	}
-	jsonData, _ := json.Marshal(projectResponseList)
-	server.redisClient.Set(context, cacheKey, jsonData, 1*time.Hour)
+
+	// Store As Cached Data in Redis (with 1 hour expiration)
+	cachedJsonData, _ := json.Marshal(projectResponseList)
+	server.redisClient.Set(context, cacheKey, cachedJsonData, 1*time.Hour)
 
 	// 5. Return JSON Response
 	responseMetadata := response.NewMetaWithCount(http.StatusOK, "success", "List projects retrieved", len(projectResponseList))
