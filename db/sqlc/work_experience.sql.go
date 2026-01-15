@@ -264,14 +264,14 @@ func (q *Queries) GetTechStacksByWorkExperienceID(ctx context.Context, workExper
 	return items, nil
 }
 
-const getWorkExperiences = `-- name: GetWorkExperiences :one
+const getWorkExperience = `-- name: GetWorkExperience :one
 SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
 FROM work_experiences
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetWorkExperiences(ctx context.Context, id int64) (WorkExperience, error) {
-	row := q.db.QueryRowContext(ctx, getWorkExperiences, id)
+func (q *Queries) GetWorkExperience(ctx context.Context, id int64) (WorkExperience, error) {
+	row := q.db.QueryRowContext(ctx, getWorkExperience, id)
 	var i WorkExperience
 	err := row.Scan(
 		&i.ID,
@@ -288,14 +288,14 @@ func (q *Queries) GetWorkExperiences(ctx context.Context, id int64) (WorkExperie
 	return i, err
 }
 
-const listWorkExperiences = `-- name: ListWorkExperiences :many
+const getWorkExperiences = `-- name: GetWorkExperiences :many
 SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
 FROM work_experiences
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListWorkExperiences(ctx context.Context) ([]WorkExperience, error) {
-	rows, err := q.db.QueryContext(ctx, listWorkExperiences)
+func (q *Queries) GetWorkExperiences(ctx context.Context) ([]WorkExperience, error) {
+	rows, err := q.db.QueryContext(ctx, getWorkExperiences)
 	if err != nil {
 		return nil, err
 	}

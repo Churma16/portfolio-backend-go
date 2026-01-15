@@ -2,12 +2,12 @@
 INSERT INTO work_experiences (company, position, location, start_date, end_date, is_current, description)
 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
 
--- name: GetWorkExperiences :one
+-- name: GetWorkExperience :one
 SELECT *
 FROM work_experiences
 WHERE id = $1 LIMIT 1;
 
--- name: ListWorkExperiences :many
+-- name: GetWorkExperiences :many
 SELECT *
 FROM work_experiences
 ORDER BY created_at DESC;
