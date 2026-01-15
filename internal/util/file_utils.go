@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -41,4 +42,9 @@ func SaveUploadedFile(context *gin.Context, uploadedFile *multipart.FileHeader, 
 	println("RETURNING RELATIVE PATH:", relativePath)
 	println("=======================================\n")
 	return relativePath, nil
+}
+
+// DeleteFile removes a file from the filesystem.
+func DeleteFile(filePath string) error {
+	return os.Remove(filePath)
 }
