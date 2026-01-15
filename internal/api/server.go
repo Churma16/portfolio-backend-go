@@ -24,58 +24,59 @@ func NewServer(store *db.Store, redisClient *redis.Client) *Server {
 	}
 	router := gin.Default()
 
+	authRoutes := router.Group("/api").Use(authMiddleware())
+	apiRoutes := router.Group("/api")
+
 	// RUTE PUBLIC (Siapapun boleh akses)
-	router.POST("/users", server.createUser)
-	router.POST("/users/login", server.loginUser)
+	apiRoutes.POST("/users", server.createUser)
+	apiRoutes.POST("/users/login", server.loginUser)
 
 	// RUTE PRIVATE (Harus bawa Token)
-	authRoutes := router.Group("/").Use(authMiddleware())
 
 	// Rute Profile
 	authRoutes.POST("/profiles", server.createProfile)
-	router.GET("/profiles/:user_id", server.getProfile)
+	apiRoutes.GET("/profiles/:user_id", server.getProfile)
 	authRoutes.PUT("/profiles", server.updateProfile)
 	authRoutes.POST("/upload", server.uploadFile)
 	authRoutes.DELETE("/profiles", server.deleteProfile)
 
 	// Rute Category
 	authRoutes.POST("/categories", server.createCategory)
-	router.GET("/categories", server.showCategories)
-	router.GET("/categories/:id", server.showCategory)
+	apiRoutes.GET("/categories", server.showCategories)
+	apiRoutes.GET("/categories/:id", server.showCategory)
 	authRoutes.PUT("/categories/:id", server.updateCategory)
 	authRoutes.DELETE("/categories/:id", server.deleteCategory)
 
 	// Rute Tag
 	authRoutes.POST("/tags", server.createTag)
-	router.GET("/tags", server.showTags)
-	router.GET("/tags/:id", server.showTag)
+	apiRoutes.GET("/tags", server.showTags)
+	apiRoutes.GET("/tags/:id", server.showTag)
 	authRoutes.PUT("/tags/:id", server.updateTag)
 	authRoutes.DELETE("/tags/:id", server.deleteTag)
 
 	// Rute Tech Stack
 	authRoutes.POST("/tech-stacks", server.createTechStack)
-	router.GET("/tech-stacks", server.showTechStacks)
-	router.GET("/tech-stacks/:id", server.showTechStack)
+	apiRoutes.GET("/tech-stacks", server.showTechStacks)
+	apiRoutes.GET("/tech-stacks/:id", server.showTechStack)
 	authRoutes.PUT("/tech-stacks/:id", server.updateTechStack)
 	authRoutes.DELETE("/tech-stacks/:id", server.deleteTechStack)
 
 	// Rute Project
 	authRoutes.POST("/projects", server.createProject)
-	router.GET("/projects", server.showProjects)
-	router.GET("/projects/:id", server.showProject)
+	apiRoutes.GET("/projects", server.showProjects)
+	apiRoutes.GET("/projects/:id", server.showProject)
 	authRoutes.PUT("/projects/:id", server.updateProject)
 	authRoutes.DELETE("/projects/:id", server.deleteProject)
 
 	// Rute Work Experience
 	authRoutes.POST("/work-experiences", server.createWorkExperience)
-	router.GET("/work-experiences", server.showWorkExperiences)
-	router.GET("/work-experiences/:id", server.showWorkExperience)
+	apiRoutes.GET("/work-experiences", server.showWorkExperiences)
+	apiRoutes.GET("/work-experiences/:id", server.showWorkExperience)
 	authRoutes.PUT("/work-experiences/:id", server.updateWorkExperience)
 	authRoutes.DELETE("/work-experiences/:id", server.deleteWorkExperience)
 
 	// Rute Message
-	router.POST("/messages", server.createMessage)
-
+	apiRoutes.POST("/contact", server.rateLimiterMiddleware("3-H"), server.createMessage)
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
 		userID, _ := ctx.Get("user_id")
