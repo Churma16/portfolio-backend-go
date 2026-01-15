@@ -411,6 +411,13 @@ func (server *Server) updateProject(ctx *gin.Context) {
 	if err == nil {
 		// New thumbnail uploaded
 		const folderName = "projects"
+		// Delete the old thumbnail if it exists
+		if existingProject.Thumbnail.Valid {
+			if err := util.DeleteFile(existingProject.Thumbnail.String); err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete old thumbnail"})
+				return
+			}
+		}
 		url, saveErr := util.SaveUploadedFile(ctx, uploadedFile, folderName)
 		if saveErr != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload thumbnail"})
