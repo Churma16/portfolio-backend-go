@@ -11,8 +11,7 @@ import (
 
 const createMessage = `-- name: CreateMessage :one
 INSERT INTO messages (name, email, content)
-VALUES ($1, $2, $3)
-RETURNING id, name, email, content, is_read, created_at, updated_at
+VALUES ($1, $2, $3) RETURNING id, name, email, content, is_read, created_at, updated_at
 `
 
 type CreateMessageParams struct {
