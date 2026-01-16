@@ -8,6 +8,11 @@ SELECT *
 FROM profiles
 WHERE user_id = $1 LIMIT 1;
 
+-- name: GetFirstProfile :one
+SELECT *
+FROM profiles
+ORDER BY created_at ASC LIMIT 1;
+
 -- name: UpdateProfile :one
 UPDATE profiles
 SET name             = $2,
