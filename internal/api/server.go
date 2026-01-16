@@ -3,7 +3,9 @@ package api
 import (
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/service"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
@@ -23,19 +25,32 @@ func NewServer(store *db.Store, redisClient *redis.Client) *Server {
 		redisClient: redisClient,
 	}
 	router := gin.Default()
+	// ADD CORS CONFIGURATION
+	config := cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173", "https://churma.codes"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}
+	router.Use(cors.New(config))
 
+	// RUTE DENGAN AUTHENTIKASI
 	authRoutes := router.Group("/api").Use(authMiddleware())
 	apiRoutes := router.Group("/api")
 
 	// RUTE PUBLIC (Siapapun boleh akses)
 	apiRoutes.POST("/users", server.createUser)
 	apiRoutes.POST("/users/login", server.loginUser)
+	apiRoutes.GET("/health", server.health)
 
 	// RUTE PRIVATE (Harus bawa Token)
 
 	// Rute Profile
 	authRoutes.POST("/profiles", server.createProfile)
 	apiRoutes.GET("/profiles/:user_id", server.getProfile)
+	apiRoutes.GET("/profiles", server.getProfiles)
 	authRoutes.PUT("/profiles", server.updateProfile)
 	authRoutes.POST("/upload", server.uploadFile)
 	authRoutes.DELETE("/profiles", server.deleteProfile)
@@ -76,7 +91,7 @@ func NewServer(store *db.Store, redisClient *redis.Client) *Server {
 	authRoutes.DELETE("/work-experiences/:id", server.deleteWorkExperience)
 
 	// Rute Message
-	apiRoutes.POST("/contact", server.rateLimiterMiddleware("3-H"), server.createMessage)
+	apiRoutes.POST("/messages", server.rateLimiterMiddleware("3-H"), server.createMessage)
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
 		userID, _ := ctx.Get("user_id")
