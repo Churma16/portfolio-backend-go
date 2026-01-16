@@ -2,6 +2,7 @@ package api
 
 import (
 	db "go-portfolio-api/db/sqlc"
+	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
 	"time"
@@ -38,14 +39,14 @@ func (server *Server) createUser(ctx *gin.Context) {
 
 	// 1. Validasi Input
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
 		return
 	}
 
 	// 2. Hash Password
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "failed to hash password"))
 		return
 	}
 
@@ -58,7 +59,7 @@ func (server *Server) createUser(ctx *gin.Context) {
 	user, err := server.store.CreateUser(ctx, arg)
 	if err != nil {
 		// TODO: Nanti kita handle error "Email Already Exists" disini
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
 
@@ -87,28 +88,28 @@ func (server *Server) loginUser(ctx *gin.Context) {
 
 	// 1. Validasi Input JSON
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
 		return
 	}
 
 	// 2. Cari User di Database berdasarkan Email
 	user, err := server.store.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User tidak ditemukan / Salah Password"})
+		ctx.JSON(http.StatusUnauthorized, response.ErrorResponse(http.StatusUnauthorized, "error", "User tidak ditemukan / Salah Password"))
 		return
 	}
 
 	// 3. Cek Password (Bandingkan input vs Hash di DB)
 	err = util.CheckPassword(req.Password, user.Password)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Password Salah"})
+		ctx.JSON(http.StatusUnauthorized, response.ErrorResponse(http.StatusUnauthorized, "error", "Password Salah"))
 		return
 	}
 
 	// 4. Bikin Token (Berlaku 24 Jam)
 	token, err := util.CreateToken(user.ID, 24*time.Hour)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat token"})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Gagal membuat token"))
 		return
 	}
 

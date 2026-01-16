@@ -40,7 +40,7 @@ func (server *Server) createTechStack(ctx *gin.Context) {
 	// Bind and validate the request body
 	var techStackRequest CreateTechStackRequest
 	if err := ctx.ShouldBind(&techStackRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
 		return
 	}
 
@@ -54,7 +54,7 @@ func (server *Server) createTechStack(ctx *gin.Context) {
 	// Call the service to create a new tech stack
 	createdTechStack, creationError := server.store.CreateTechStack(ctx, createTechStackParams)
 	if creationError != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": creationError.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", creationError.Error()))
 		return
 	}
 
@@ -78,7 +78,7 @@ func (server *Server) showTechStacks(ctx *gin.Context) {
 
 	allTechStacks, retrievalError := server.store.GetTechStacks(ctx)
 	if retrievalError != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": retrievalError.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", retrievalError.Error()))
 		return
 	}
 
@@ -93,13 +93,13 @@ func (server *Server) showTechStack(ctx *gin.Context) {
 	techStackIDParam := ctx.Param("id")
 	techStackID, parseError := strconv.ParseInt(techStackIDParam, 10, 64)
 	if parseError != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tech stack ID"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid tech stack ID"))
 		return
 	}
 
 	techStackDetails, retrievalError := server.store.GetTechStack(ctx, techStackID)
 	if retrievalError != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": retrievalError.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", retrievalError.Error()))
 		return
 	}
 
@@ -112,23 +112,23 @@ func (server *Server) showTechStack(ctx *gin.Context) {
 func (server *Server) updateTechStack(ctx *gin.Context) {
 	var req updateTechStackRequest
 	if err := ctx.ShouldBind(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
 		return
 	}
 
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tech stack ID"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid tech stack ID"))
 		return
 	}
 
 	existingTechStack, err := server.store.GetTechStack(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Tech Stack not found"})
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech Stack not found"))
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		}
 		return
 	}
@@ -149,7 +149,7 @@ func (server *Server) updateTechStack(ctx *gin.Context) {
 
 	techStack, err := server.store.UpdateTechStack(ctx, arguments)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
 
@@ -165,13 +165,13 @@ func (server *Server) deleteTechStack(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tech stack ID"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid tech stack ID"))
 		return
 	}
 
 	techStack, err := server.store.DeleteTechStack(ctx, id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
 

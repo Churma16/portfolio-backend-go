@@ -46,7 +46,7 @@ type workExperienceData struct {
 func (server *Server) createWorkExperience(ctx *gin.Context) {
 	var workExpRequest workExperienceRequest
 	if err := ctx.ShouldBind(&workExpRequest); err != nil {
-		ctx.JSON(400, gin.H{"error": "Invalid request"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid request"))
 		return
 	}
 
@@ -94,7 +94,7 @@ func (server *Server) createWorkExperience(ctx *gin.Context) {
 	})
 
 	if transactionError != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": transactionError.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", transactionError.Error()))
 		return
 	}
 
@@ -124,7 +124,7 @@ func (server *Server) showWorkExperiences(ctx *gin.Context) {
 
 	workExperiences, retrievalError := server.store.GetWorkExperiences(ctx)
 	if retrievalError != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": retrievalError.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", retrievalError.Error()))
 		return
 	}
 
@@ -205,7 +205,7 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid ID"))
 		return
 	}
 	queryParam := ctx.Query("with")
@@ -214,9 +214,9 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 	workExperience, err := server.store.GetWorkExperience(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Work experience not found"})
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Work experience not found"))
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		}
 		return
 	}
@@ -274,13 +274,13 @@ func (server *Server) updateWorkExperience(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid ID"))
 		return
 	}
 
 	var workExpRequest workExperienceRequest
 	if err := ctx.ShouldBind(&workExpRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid request"))
 		return
 	}
 
@@ -335,7 +335,7 @@ func (server *Server) updateWorkExperience(ctx *gin.Context) {
 	})
 
 	if txErr != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": txErr.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", txErr.Error()))
 		return
 	}
 
@@ -350,13 +350,13 @@ func (server *Server) deleteWorkExperience(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid ID"))
 		return
 	}
 
 	deletedWorkExp, err := server.store.DeleteWorkExperience(ctx, id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
 

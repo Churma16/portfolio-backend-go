@@ -502,7 +502,7 @@ func (server *Server) deleteProject(ctx *gin.Context) {
 		ID int64 `uri:"id" binding:"required"`
 	}
 	if err := ctx.ShouldBindUri(&uri); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
 		return
 	}
 
@@ -510,26 +510,26 @@ func (server *Server) deleteProject(ctx *gin.Context) {
 	_, err := server.store.GetProject(ctx, uri.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Project not found"))
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
 
 	// 3. Eksekusi Hapus
 	// Berkat ON DELETE CASCADE, Tech Stack & Tags ikut terhapus otomatis.
 	project, err := server.store.DeleteProject(ctx, uri.ID)
-	if project.Thumbnail.Valid {
-		if err := util.DeleteFile(project.Thumbnail.String); err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete project thumbnail"})
-			return
-		}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
+		return
 	}
 
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	if project.Thumbnail.Valid {
+		if err := util.DeleteFile(project.Thumbnail.String); err != nil {
+			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Failed to delete project thumbnail"))
+			return
+		}
 	}
 
 	// 4. Return Success

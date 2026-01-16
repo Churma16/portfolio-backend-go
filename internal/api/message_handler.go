@@ -43,7 +43,7 @@ func (server *Server) createMessage(ctx *gin.Context) {
 
 	message, err := server.store.CreateMessage(ctx, arg)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
 

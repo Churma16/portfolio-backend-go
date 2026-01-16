@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
+	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
 	"time"
@@ -215,6 +216,27 @@ func (server *Server) getProfile(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, newProfileResponse(profile))
 }
 
+func (server *Server) getProfiles(ctx *gin.Context) {
+	// 1. Ambil User ID.
+	// Kita bisa ambil dari Token (kalau rute Private /me)
+	// ATAU ambil dari URL parameter (kalau rute Public /:user_id)
+
+	// Skenario: PUBLIC ACCESS (via URL param id)
+	// Contoh: GET /profile/1
+
+	// 2. Panggil Database
+	profile, err := server.store.GetFirstProfile(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Profile tidak ditemukan"})
+		return
+	}
+
+	// 3. Mapping ke JSON & Return
+	meta := response.NewMeta(http.StatusOK, "success", "Profile berhasil diambil")
+	data := newProfileResponse(profile)
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
+}
+
 func (server *Server) updateProfile(ctx *gin.Context) {
 	// 1. Bind data form - auto-detect Content-Type
 	var req createProfileRequest
@@ -307,7 +329,7 @@ func (server *Server) deleteProfile(ctx *gin.Context) {
 	// 2. Eksekusi Hapus
 	_, err := server.store.DeleteProfile(ctx, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
 

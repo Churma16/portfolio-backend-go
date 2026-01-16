@@ -124,16 +124,16 @@ func (server *Server) deleteCategory(ctx *gin.Context) {
 
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "invalid id"))
 		return
 	}
 
 	category, err := server.categoryService.DeleteCategory(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Category not found"))
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Internal server error"))
 		}
 		return
 	}
