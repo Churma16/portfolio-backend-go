@@ -14,17 +14,17 @@ import (
 
 func main() {
 	// 1. Load file .env
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379", // Sesuaikan alamat Redis kamu
-		Password: "",               // Kosongkan jika tidak ada password
-		DB:       0,                // Default DB
-	})
 
 	err := godotenv.Load("app.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379", // Sesuaikan alamat Redis kamu
+		Password: "",               // Kosongkan jika tidak ada password
+		DB:       0,                // Default DB
+	})
 	dbDriver := os.Getenv("DB_DRIVER")
 	dbSource := os.Getenv("DB_SOURCE")
 	serverAddress := os.Getenv("SERVER_ADDRESS")
