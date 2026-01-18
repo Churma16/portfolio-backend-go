@@ -11,7 +11,7 @@ import (
 	sredis "github.com/ulule/limiter/v3/drivers/store/redis"
 )
 
-func authMiddleware() gin.HandlerFunc {
+func (server *Server) authMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// 1. Ambil Header Authorization
 		authHeader := ctx.GetHeader("Authorization")
@@ -29,7 +29,7 @@ func authMiddleware() gin.HandlerFunc {
 
 		// 3. Verifikasi Token
 		accessToken := fields[1]
-		userID, err := util.VerifyToken(accessToken)
+		userID, err := util.VerifyToken(accessToken, server.tokenKey)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
@@ -52,8 +52,7 @@ func (server *Server) rateLimiterMiddleware(rateFormat string) gin.HandlerFunc {
 	// 2. Setup Store (Simpan hitungan di Redis)
 	// Kita pakai server.redisClient yang sudah ada
 	store, err := sredis.NewStoreWithOptions(server.redisClient, limiter.StoreOptions{
-		Prefix:   "limiter_contact:", // Prefix key di Redis
-		MaxRetry: 3,
+		Prefix: "limiter_contact:", // Prefix key di Redis
 	})
 	if err != nil {
 		panic(err)
