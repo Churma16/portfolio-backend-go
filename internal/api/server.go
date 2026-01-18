@@ -16,13 +16,15 @@ type Server struct {
 	categoryService service.CategoryService
 	router          *gin.Engine
 	redisClient     *redis.Client
+	tokenKey        string // <--- TAMBAHKAN INI (Untuk menyimpan TOKEN_SYMMETRIC_KEY)
 }
 
 // NewServer membuat instance server baru
-func NewServer(store *db.Store, redisClient *redis.Client) *Server {
+func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Server {
 	server := &Server{
 		store:       store,
 		redisClient: redisClient,
+		tokenKey:    tokenKey, // Simpan ke struct
 	}
 	router := gin.Default()
 	// ADD CORS CONFIGURATION
@@ -36,8 +38,13 @@ func NewServer(store *db.Store, redisClient *redis.Client) *Server {
 	}
 	router.Use(cors.New(config))
 
+	//rute UTama
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "API is running"})
+	})
+
 	// RUTE DENGAN AUTHENTIKASI
-	authRoutes := router.Group("/api").Use(authMiddleware())
+	authRoutes := router.Group("/api").Use(server.authMiddleware())
 	apiRoutes := router.Group("/api")
 
 	// RUTE PUBLIC (Siapapun boleh akses)

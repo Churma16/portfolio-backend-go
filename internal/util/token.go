@@ -2,53 +2,51 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// SecretKey adalah Rahasia dapur (Harusnya di .env, tapi buat belajar kita taruh sini dulu atau ambil dr param)
-var SecretKey = []byte("rahasia_super_negara_api")
+// HAPUS variabel global SecretKey!
+// var SecretKey = []byte("rahasia_super_negara_api") <-- BUANG INI
 
-// ErrTokenInvalid adalah error untuk token yang tidak valid
 var ErrTokenInvalid = errors.New("token tidak valid")
 
-// CreateToken membuat token JWT yang berlaku selama durasi tertentu
-func CreateToken(userID int64, duration time.Duration) (string, error) {
-	// 1. Tentukan isi token (Claims)
+// Update: Tambahkan parameter 'secretKey string'
+func CreateToken(userID int64, duration time.Duration, secretKey string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(duration).Unix(), // Kapan kadaluarsa
-		"iat":     time.Now().Unix(),               // Kapan dibuat
+		"exp":     time.Now().Add(duration).Unix(),
+		"iat":     time.Now().Unix(),
 	}
 
-	// 2. Buat token dengan algoritma HS256
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	// 3. Tanda tangani token dengan Secret Key
-	return token.SignedString(SecretKey)
+	// Gunakan secretKey dari parameter (convert ke []byte)
+	return token.SignedString([]byte(secretKey))
 }
 
-// VerifyToken memeriksa apakah token valid dan mengembalikan User ID
-func VerifyToken(tokenString string) (int64, error) {
-	// 1. Parse token dengan Secret Key yang sama
+// Update: Tambahkan parameter 'secretKey string'
+func VerifyToken(tokenString string, secretKey string) (int64, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Pastikan algoritma-nya benar (HMAC)
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
-		return SecretKey, nil
+		// Gunakan secretKey dari parameter
+		return []byte(secretKey), nil
 	})
 
 	if err != nil {
 		return 0, err
 	}
 
-	// 2. Ambil data (Claims) dari dalam token
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		// Ambil user_id dan ubah jadi int64
-		userID := int64(claims["user_id"].(float64))
-		return userID, nil
+		// Konversi aman float64 ke int64
+		if val, ok := claims["user_id"].(float64); ok {
+			return int64(val), nil
+		}
+		return 0, fmt.Errorf("invalid user_id type")
 	}
 
 	return 0, ErrTokenInvalid

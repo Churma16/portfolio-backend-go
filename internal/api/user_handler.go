@@ -107,7 +107,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 	}
 
 	// 4. Bikin Token (Berlaku 24 Jam)
-	token, err := util.CreateToken(user.ID, 24*time.Hour)
+	accessToken, err := util.CreateToken(user.ID, 24*time.Hour, server.tokenKey)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Gagal membuat token"))
 		return
@@ -115,7 +115,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 
 	// 5. Kirim Response Token + Data User
 	rsp := loginUserResponse{
-		AccessToken: token,
+		AccessToken: accessToken,
 		User: userResponse{
 			ID:        user.ID,
 			Email:     user.Email,

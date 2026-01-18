@@ -14,11 +14,16 @@ import (
 
 func main() {
 	// 1. Load file .env
-
 	err := godotenv.Load("app.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
+	tokenKey := os.Getenv("TOKEN_SYMMETRIC_KEY")
+	if len(tokenKey) != 32 {
+		log.Fatal("TOKEN_SYMMETRIC_KEY must be 32 characters")
+	}
+
 
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379", // Sesuaikan alamat Redis kamu
@@ -38,7 +43,7 @@ func main() {
 	// 3. Init Store & Server
 	//store := db.New(conn)
 	store := db.NewStore(conn)
-	server := api.NewServer(store, redisClient)
+	server := api.NewServer(store, redisClient, tokenKey)
 
 	// 4. Jalankan Server
 	log.Println("Server running on", serverAddress)
