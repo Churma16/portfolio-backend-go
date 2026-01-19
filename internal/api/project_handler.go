@@ -49,45 +49,26 @@ type projectData struct {
 }
 
 func (server *Server) createProject(ctx *gin.Context) {
-	println("\n\n========== CREATE PROJECT DEBUG START ==========")
-	println("STEP 1: Checking Content-Type")
-	contentTypeHeader := ctx.Request.Header.Get("Content-Type")
-	println("  Content-Type:", contentTypeHeader)
-
 	// Handle Upload Thumbnail
 	var projectRequest createProjectRequest
-	println("STEP 2: Attempting to ShouldBind()")
 	if err := ctx.ShouldBind(&projectRequest); err != nil {
-		println("  ERROR BINDING:", err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		println("========== CREATE PROJECT DEBUG END (ERROR BINDING) ==========\n\n")
 		return
 	}
-	println("  ✓ ShouldBind SUCCESS")
-	println("  Parsed title:", projectRequest.Title)
 
-	println("STEP 3: Attempting to get thumbnail file")
 	var thumbnailFileURL string
 
 	uploadedThumbnailFile, fileError := ctx.FormFile("thumbnail")
 	projectFolderName := "projects"
 	if fileError == nil {
-		println("  ✓ Thumbnail file found!")
-		println("  Thumbnail filename:", uploadedThumbnailFile.Filename)
-		println("  Thumbnail size:", uploadedThumbnailFile.Size)
 
-		println("  Calling SaveUploadedFile for thumbnail...")
 		savedThumbnailURL, saveError := util.SaveUploadedFile(ctx, uploadedThumbnailFile, projectFolderName)
 		if saveError != nil {
-			println("  ERROR saving thumbnail:", saveError.Error())
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload thumbnail"})
-			println("========== CREATE PROJECT DEBUG END (THUMBNAIL ERROR) ==========\n\n")
 			return
 		}
 		thumbnailFileURL = savedThumbnailURL
-		println("  ✓ Thumbnail saved with URL:", thumbnailFileURL)
 	} else {
-		println("  ✗ Thumbnail NOT found:", fileError.Error())
 	}
 
 	techStackIDs, _ := util.ParseStringToIntArray(projectRequest.TechStackIDs)
