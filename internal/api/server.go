@@ -22,9 +22,10 @@ type Server struct {
 // NewServer membuat instance server baru
 func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Server {
 	server := &Server{
-		store:       store,
-		redisClient: redisClient,
-		tokenKey:    tokenKey, // Simpan ke struct
+		store:           store,
+		redisClient:     redisClient,
+		tokenKey:        tokenKey,                          // Simpan ke struct
+		categoryService: service.NewCategoryService(store), // Initialize categoryService
 	}
 	router := gin.Default()
 	// ADD CORS CONFIGURATION
@@ -49,7 +50,7 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Ser
 
 	// RUTE PUBLIC (Siapapun boleh akses)
 	apiRoutes.POST("/users", server.createUser)
-	apiRoutes.POST("/users/login", server.loginUser)
+	apiRoutes.POST("/login", server.loginUser)
 	apiRoutes.GET("/health", server.health)
 
 	// RUTE PRIVATE (Harus bawa Token)
