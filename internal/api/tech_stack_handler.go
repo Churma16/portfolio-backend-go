@@ -65,12 +65,15 @@ func (server *Server) createTechStack(ctx *gin.Context) {
 }
 
 func (server *Server) showTechStacks(ctx *gin.Context) {
-	cacheKey := "tech_stacks:list"
+	cacheKey := "tech_stacks:list:all"
 	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
 	if cacheErr == nil {
 		var cachedTechStacks []TechStackData
 		if err := json.Unmarshal([]byte(cacheValue), &cachedTechStacks); err == nil {
-			responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Get all tech stacks (Cached)", len(cachedTechStacks))
+			responseMeta := response.NewMetaWithCount(http.StatusOK,
+				"success",
+				"Get all tech stacks (Cached)",
+				len(cachedTechStacks))
 			ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, cachedTechStacks))
 			return
 		}
@@ -85,6 +88,7 @@ func (server *Server) showTechStacks(ctx *gin.Context) {
 	responseData := TechStacksResponse(allTechStacks)
 	cachedData, _ := json.Marshal(responseData)
 	server.redisClient.Set(ctx, cacheKey, cachedData, 1*time.Hour)
+
 	responseMeta := response.NewMetaWithCount(http.StatusOK, "success", "Get all tech stacks", len(allTechStacks))
 	ctx.JSON(http.StatusOK, response.NewMultipleDataResponse(responseMeta, responseData))
 }
@@ -110,6 +114,7 @@ func (server *Server) showTechStack(ctx *gin.Context) {
 }
 
 func (server *Server) updateTechStack(ctx *gin.Context) {
+
 	var req updateTechStackRequest
 	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
