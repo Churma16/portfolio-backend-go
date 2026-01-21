@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
+	"go-portfolio-api/internal/dto"
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
@@ -16,15 +17,15 @@ import (
 )
 
 type createProjectRequest struct {
-	Title       string `form:"title" binding:"required"`
-	Content     string `form:"content"`
-	DemoUrl     string `form:"demo_url"`
-	RepoUrl     string `form:"repo_url"`
-	CategoryID  int64  `form:"category_id" binding:"required"`
-	PublishedAt string `form:"published_at"`
+	Title       string `json:"title" form:"title" binding:"required"`
+	Content     string `json:"content" form:"content"`
+	DemoUrl     string `json:"demo_url" form:"demo_url"`
+	RepoUrl     string `json:"repo_url" form:"repo_url"`
+	CategoryID  int64  `json:"category_id" form:"category_id" binding:"required"`
+	PublishedAt string `json:"published_at" form:"published_at"`
 
-	TechStackIDs string `form:"tech_stack_ids"`
-	TagIDs       string `form:"tag_ids"`
+	TechStackIDs interface{} `json:"tech_stack_ids" form:"tech_stack_ids"` // Can be array or string
+	TagIDs       interface{} `json:"tag_ids" form:"tag_ids"`               // Can be array or string
 }
 
 type projectData struct {
@@ -43,9 +44,9 @@ type projectData struct {
 
 	// Field Tambahan (Pointers & Omitted if Empty)
 	// Kita pakai Pointer (*) supaya kalau tidak diminta, nilainya null (tidak muncul di JSON)
-	Category   *db.Category    `json:"category,omitempty"`
-	TechStacks []TechStackData `json:"tech_stacks,omitempty"`
-	Tags       []TagData       `json:"tags,omitempty"`
+	Category   *dto.CategoryData `json:"category,omitempty"`
+	TechStacks []TechStackData   `json:"tech_stack,omitempty"`
+	Tags       []TagData         `json:"tags,omitempty"`
 }
 
 func (server *Server) createProject(ctx *gin.Context) {
@@ -71,9 +72,10 @@ func (server *Server) createProject(ctx *gin.Context) {
 	} else {
 	}
 
-	techStackIDs, _ := util.ParseStringToIntArray(projectRequest.TechStackIDs)
-	tagIDs, _ := util.ParseStringToIntArray(projectRequest.TagIDs)
+	techStackIDs := util.ParseInterfaceToIntArray(projectRequest.TechStackIDs)
+	tagIDs := util.ParseInterfaceToIntArray(projectRequest.TagIDs)
 
+	println(techStackIDs, tagIDs)
 	// 3. TRANSACTION BLOCK (ExecTx)
 	var newProject db.Project
 	transactionError := server.store.ExecTx(ctx, func(queries *db.Queries) error {
@@ -81,13 +83,12 @@ func (server *Server) createProject(ctx *gin.Context) {
 
 		// A. Insert Main Project
 		createProjectParams := db.CreateProjectParams{
-			Title:      projectRequest.Title,
-			Slug:       slug.Make(projectRequest.Title),
-			Content:    convertToNullString(projectRequest.Content),
-			Thumbnail:  convertToNullString(thumbnailFileURL),
-			RepoUrl:    convertToNullString(projectRequest.RepoUrl),
-			DemoUrl:    convertToNullString(projectRequest.DemoUrl),
-			CategoryID: sql.NullInt64{Int64: projectRequest.CategoryID, Valid: true},
+			Title:     projectRequest.Title,
+			Slug:      slug.Make(projectRequest.Title),
+			Content:   convertToNullString(projectRequest.Content),
+			Thumbnail: convertToNullString(thumbnailFileURL),
+			RepoUrl:   convertToNullString(projectRequest.RepoUrl),
+			DemoUrl:   convertToNullString(projectRequest.DemoUrl), CategoryID: sql.NullInt64{Int64: projectRequest.CategoryID, Valid: true},
 		}
 
 		newProject, executionError = queries.CreateProject(ctx, createProjectParams)
@@ -156,6 +157,7 @@ func (server *Server) showProjects(context *gin.Context) {
 			return
 		}
 	}
+
 	queryParam := context.Query("with")
 
 	// 1. Retrieve Projects
@@ -179,17 +181,25 @@ func (server *Server) showProjects(context *gin.Context) {
 
 	// 3. Prepare Maps for Temporary Storage
 	// These maps allow quick data lookup (O(1)) without additional looping
-	techStackLookup := make(map[int64][]TechStackData) // Key: ProjectID, Value: List of TechStacks
-	tagLookup := make(map[int64][]TagData)             // Key: ProjectID, Value: List of Tags
-	categoryLookup := make(map[int64]*db.Category)     // Key: CategoryID, Value: Category
+	techStackLookup := make(map[int64][]TechStackData)  // Key: ProjectID, Value: List of TechStacks
+	tagLookup := make(map[int64][]TagData)              // Key: ProjectID, Value: List of Tags
+	categoryLookup := make(map[int64]*dto.CategoryData) // Key: CategoryID, Value: Category
 
 	// --- Batch Query: Categories ---
 	if strings.Contains(queryParam, "category") && len(categoryIDs) > 0 {
 		categories, categoryError := server.store.GetCategoriesByIDs(context, categoryIDs)
 		if categoryError == nil {
 			for _, category := range categories {
-				categoryCopy := category // Copy variable to ensure pointer safety
-				categoryLookup[category.ID] = &categoryCopy
+				// Map DB Model -> DTO
+				categoryLookup[category.ID] = &dto.CategoryData{
+					ID:   category.ID,
+					Name: category.Name,
+					Slug: category.Slug,
+					// THIS FIXES THE ISSUE: Extract the String value
+					Color:     category.Color.String,
+					CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
+					UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05"),
+				}
 			}
 		}
 	}
@@ -296,13 +306,22 @@ func (server *Server) showProject(context *gin.Context) {
 	// 2. Prepare Maps for Related Data
 	techStackLookup := make(map[int64][]TechStackData)
 	tagLookup := make(map[int64][]TagData)
-	var category *db.Category
+	var category *dto.CategoryData // Update type to DTO
 
 	// --- Query: Category ---
 	if strings.Contains(queryParam, "category") && project.CategoryID.Valid {
 		categoryResult, categoryError := server.store.GetCategory(context, project.CategoryID.Int64)
 		if categoryError == nil {
-			category = &categoryResult
+			// Map DB Model -> DTO
+			category = &dto.CategoryData{
+				ID:   categoryResult.ID,
+				Name: categoryResult.Name,
+				Slug: categoryResult.Slug,
+				// THIS FIXES THE ISSUE: Extract the String value
+				Color:     categoryResult.Color.String,
+				CreatedAt: categoryResult.CreatedAt.Format("2006-01-02 15:04:05"),
+				UpdatedAt: categoryResult.UpdatedAt.Format("2006-01-02 15:04:05"),
+			}
 		}
 	}
 
@@ -356,8 +375,8 @@ func (server *Server) showProject(context *gin.Context) {
 		projectItem.Tags = tags
 	}
 
-	cachedJsonData, _ := json.Marshal(projectItem)
-	server.redisClient.Set(context, cacheKey, cachedJsonData, 1*time.Hour)
+	//cachedJsonData, _ := json.Marshal(projectItem)
+	//server.redisClient.Set(context, cacheKey, cachedJsonData, 1*time.Hour)
 	// 4. Return JSON Response
 	responseMetadata := response.NewMeta(http.StatusOK, "success", "Project retrieved successfully")
 	context.JSON(http.StatusOK, response.NewSingleDataResponse(responseMetadata, projectItem))
@@ -408,9 +427,9 @@ func (server *Server) updateProject(ctx *gin.Context) {
 		thumbnailURL = url
 	}
 
-	// 5. Convert Array IDs from Strings to Integers
-	techStackIDs, _ := util.ParseStringToIntArray(req.TechStackIDs)
-	tagIDs, _ := util.ParseStringToIntArray(req.TagIDs)
+	// 5. Convert Array IDs from Interface to Integers
+	techStackIDs := util.ParseInterfaceToIntArray(req.TechStackIDs)
+	tagIDs := util.ParseInterfaceToIntArray(req.TagIDs)
 
 	// 6. TRANSACTION BLOCK (Wipe & Replace Strategy)
 	var updatedProject db.Project
