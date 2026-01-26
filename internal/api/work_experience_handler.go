@@ -15,16 +15,15 @@ import (
 )
 
 type workExperienceRequest struct {
-	Company     string `form:"company" binding:"required"`
-	Position    string `form:"position" binding:"required"`
-	Location    string `form:"location"`
-	StartDate   string `form:"start_date"`
-	EndDate     string `form:"end_date"`
-	isCurrent   bool   `form:"is_current"`
-	Description string `form:"description"`
-
-	TechStackIDs string `form:"tech_stack_ids"`
-	TagIDs       string `form:"tag_ids"`
+	Company      string      `json:"company" binding:"required"`
+	Position     string      `json:"position" binding:"required"`
+	Location     string      `json:"location"`
+	StartDate    string      `json:"start_date"`
+	EndDate      string      `json:"end_date"`
+	IsCurrent    bool        `json:"is_current"`
+	Description  string      `json:"description"`
+	TechStackIDs interface{} `json:"tech_stack_ids"`
+	TagIDs       interface{} `json:"tag_ids"`
 }
 
 type workExperienceData struct {
@@ -39,7 +38,7 @@ type workExperienceData struct {
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 
-	TechStacks []TechStackData `json:"tech_stacks,omitempty"`
+	TechStacks []TechStackData `json:"tech_stack,omitempty"`
 	Tags       []TagData       `json:"tags,omitempty"`
 }
 
@@ -50,8 +49,8 @@ func (server *Server) createWorkExperience(ctx *gin.Context) {
 		return
 	}
 
-	techStackIDs, _ := util.ParseStringToIntArray(workExpRequest.TechStackIDs)
-	tagIDs, _ := util.ParseStringToIntArray(workExpRequest.TagIDs)
+	techStackIDs := util.ParseInterfaceToIntArray(workExpRequest.TechStackIDs)
+	tagIDs := util.ParseInterfaceToIntArray(workExpRequest.TagIDs)
 
 	var newWorkExperience db.WorkExperience
 	transactionError := server.store.ExecTx(ctx, func(queries *db.Queries) error {
@@ -63,7 +62,7 @@ func (server *Server) createWorkExperience(ctx *gin.Context) {
 			Location:    convertToNullString(workExpRequest.Location),
 			StartDate:   convertToNullString(workExpRequest.StartDate),
 			EndDate:     convertToNullString(workExpRequest.EndDate),
-			IsCurrent:   convertToNullBool(workExpRequest.isCurrent),
+			IsCurrent:   convertToNullBool(workExpRequest.IsCurrent),
 			Description: convertToNullString(workExpRequest.Description),
 		}
 
@@ -286,14 +285,17 @@ func (server *Server) updateWorkExperience(ctx *gin.Context) {
 
 	var updatedWorkExp db.WorkExperience
 	txErr := server.store.ExecTx(ctx, func(queries *db.Queries) error {
+		StartDate := util.FormatDate(convertToNullString(workExpRequest.StartDate), "2006-01-02")
+		EndDate := util.FormatDate(convertToNullString(workExpRequest.EndDate), "2006-01-02")
+
 		updateParams := db.UpdateWorkExperienceParams{
 			ID:          id,
 			Company:     workExpRequest.Company,
 			Position:    workExpRequest.Position,
 			Location:    convertToNullString(workExpRequest.Location),
-			StartDate:   convertToNullString(workExpRequest.StartDate),
-			EndDate:     convertToNullString(workExpRequest.EndDate),
-			IsCurrent:   convertToNullBool(workExpRequest.isCurrent),
+			StartDate:   convertToNullString(StartDate),
+			EndDate:     convertToNullString(EndDate),
+			IsCurrent:   convertToNullBool(workExpRequest.IsCurrent),
 			Description: convertToNullString(workExpRequest.Description),
 		}
 
@@ -303,8 +305,8 @@ func (server *Server) updateWorkExperience(ctx *gin.Context) {
 		}
 
 		// Update TechStacks and Tags (if provided)
-		techStackIDs, _ := util.ParseStringToIntArray(workExpRequest.TechStackIDs)
-		tagIDs, _ := util.ParseStringToIntArray(workExpRequest.TagIDs)
+		techStackIDs := util.ParseInterfaceToIntArray(workExpRequest.TechStackIDs)
+		tagIDs := util.ParseInterfaceToIntArray(workExpRequest.TagIDs)
 
 		if err := queries.DeleteWorkExperienceTechStacks(ctx, id); err != nil {
 			return err
@@ -372,8 +374,8 @@ func workExperienceResponse(workExperience db.WorkExperience) workExperienceData
 		Company:     workExperience.Company,
 		Position:    workExperience.Position,
 		Location:    workExperience.Location.String,
-		StartDate:   workExperience.StartDate.String,
-		EndDate:     workExperience.EndDate.String,
+		StartDate:   util.FormatDate(workExperience.StartDate, "Jan 2006"),
+		EndDate:     util.FormatDate(workExperience.EndDate, "Jan 2006"),
 		IsCurrent:   workExperience.IsCurrent.Bool,
 		Description: workExperience.Description.String,
 		CreatedAt:   workExperience.CreatedAt.Format("2006-01-02 15:04:05"),
