@@ -38,7 +38,7 @@ func SaveUploadedFile(context *gin.Context, uploadedFile *multipart.FileHeader, 
 	println("FILE SAVED SUCCESSFULLY!")
 
 	// Return the relative file path for further use
-	relativePath := fmt.Sprintf("/%s/%s", targetFolder, uniqueFilename)
+	relativePath := fmt.Sprintf("%s/%s", targetFolder, uniqueFilename)
 	println("RETURNING RELATIVE PATH:", relativePath)
 	println("=======================================\n")
 	return relativePath, nil
@@ -46,5 +46,5 @@ func SaveUploadedFile(context *gin.Context, uploadedFile *multipart.FileHeader, 
 
 // DeleteFile removes a file from the filesystem.
 func DeleteFile(filePath string) error {
-	return os.Remove(filePath)
+	return os.Remove("./storage/" + filePath)
 }
