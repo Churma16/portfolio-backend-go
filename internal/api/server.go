@@ -44,6 +44,9 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Ser
 		c.JSON(200, gin.H{"message": "API is running"})
 	})
 
+	// SERVE STATIC FILES (Storage folder for uploaded images)
+	router.Static("/storage", "./storage")
+
 	// RUTE DENGAN AUTHENTIKASI
 	authRoutes := router.Group("/api").Use(server.authMiddleware())
 	apiRoutes := router.Group("/api")
