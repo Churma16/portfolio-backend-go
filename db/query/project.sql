@@ -21,6 +21,7 @@ SET title       = $2,
     demo_url    = $6,
     repo_url    = $7,
     category_id = $8,
+    published_at = $9,
     updated_at  = now()
 WHERE id = $1 RETURNING *;
 

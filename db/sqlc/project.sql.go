@@ -389,19 +389,21 @@ SET title       = $2,
     demo_url    = $6,
     repo_url    = $7,
     category_id = $8,
+    published_at = $9,
     updated_at  = now()
 WHERE id = $1 RETURNING id, title, slug, thumbnail, content, demo_url, repo_url, is_featured, published_at, column_order, category_id, created_at, updated_at
 `
 
 type UpdateProjectParams struct {
-	ID         int64          `json:"id"`
-	Title      string         `json:"title"`
-	Slug       string         `json:"slug"`
-	Thumbnail  sql.NullString `json:"thumbnail"`
-	Content    sql.NullString `json:"content"`
-	DemoUrl    sql.NullString `json:"demo_url"`
-	RepoUrl    sql.NullString `json:"repo_url"`
-	CategoryID sql.NullInt64  `json:"category_id"`
+	ID          int64          `json:"id"`
+	Title       string         `json:"title"`
+	Slug        string         `json:"slug"`
+	Thumbnail   sql.NullString `json:"thumbnail"`
+	Content     sql.NullString `json:"content"`
+	DemoUrl     sql.NullString `json:"demo_url"`
+	RepoUrl     sql.NullString `json:"repo_url"`
+	CategoryID  sql.NullInt64  `json:"category_id"`
+	PublishedAt sql.NullTime   `json:"published_at"`
 }
 
 func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {
@@ -414,6 +416,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		arg.DemoUrl,
 		arg.RepoUrl,
 		arg.CategoryID,
+		arg.PublishedAt,
 	)
 	var i Project
 	err := row.Scan(
