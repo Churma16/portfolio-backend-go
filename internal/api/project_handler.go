@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/gosimple/slug"
 )
 
@@ -23,9 +24,6 @@ type createProjectRequest struct {
 	RepoUrl     string `json:"repo_url" form:"repo_url"`
 	CategoryID  int64  `json:"category_id" form:"category_id" binding:"required"`
 	PublishedAt string `json:"published_at" form:"published_at"`
-
-	TechStackIDs interface{} `json:"tech_stack_ids" form:"tech_stack_ids"` // Can be array or string
-	TagIDs       interface{} `json:"tag_ids" form:"tag_ids"`               // Can be array or string
 }
 
 type projectData struct {
@@ -50,9 +48,9 @@ type projectData struct {
 }
 
 func (server *Server) createProject(ctx *gin.Context) {
-	// Handle Upload Thumbnail
+	// Handle Upload Thumbnail - Use custom binding for multipart form data
 	var projectRequest createProjectRequest
-	if err := ctx.ShouldBind(&projectRequest); err != nil {
+	if err := ctx.ShouldBindWith(&projectRequest, binding.FormMultipart); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -72,10 +70,24 @@ func (server *Server) createProject(ctx *gin.Context) {
 	} else {
 	}
 
-	techStackIDs := util.ParseInterfaceToIntArray(projectRequest.TechStackIDs)
-	tagIDs := util.ParseInterfaceToIntArray(projectRequest.TagIDs)
+	// Parse JSON arrays from form fields directly
+	techStackIDsStr := ctx.PostForm("tech_stack_ids")
+	tagIDsStr := ctx.PostForm("tag_ids")
 
-	println(techStackIDs, tagIDs)
+	var techStackIDs []int64
+	var tagIDs []int64
+
+	if techStackIDsStr != "" {
+		if err := json.Unmarshal([]byte(techStackIDsStr), &techStackIDs); err != nil {
+			techStackIDs = util.ParseInterfaceToIntArray(techStackIDsStr)
+		}
+	}
+
+	if tagIDsStr != "" {
+		if err := json.Unmarshal([]byte(tagIDsStr), &tagIDs); err != nil {
+			tagIDs = util.ParseInterfaceToIntArray(tagIDsStr)
+		}
+	}
 	// 3. TRANSACTION BLOCK (ExecTx)
 	var newProject db.Project
 	transactionError := server.store.ExecTx(ctx, func(queries *db.Queries) error {
@@ -394,7 +406,7 @@ func (server *Server) updateProject(ctx *gin.Context) {
 
 	// 2. Parse Form Data (Reuse struct createProjectRequest)
 	var req createProjectRequest
-	if err := ctx.ShouldBind(&req); err != nil {
+	if err := ctx.ShouldBindWith(&req, binding.FormMultipart); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -415,7 +427,7 @@ func (server *Server) updateProject(ctx *gin.Context) {
 		// Delete the old thumbnail if it exists
 		if existingProject.Thumbnail.Valid {
 			if err := util.DeleteFile(existingProject.Thumbnail.String); err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete old thumbnail"})
+				ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 				return
 			}
 		}
@@ -427,9 +439,24 @@ func (server *Server) updateProject(ctx *gin.Context) {
 		thumbnailURL = url
 	}
 
-	// 5. Convert Array IDs from Interface to Integers
-	techStackIDs := util.ParseInterfaceToIntArray(req.TechStackIDs)
-	tagIDs := util.ParseInterfaceToIntArray(req.TagIDs)
+	// 5. Parse JSON arrays from form fields
+	techStackIDsStr := ctx.PostForm("tech_stack_ids")
+	tagIDsStr := ctx.PostForm("tag_ids")
+
+	var techStackIDs []int64
+	var tagIDs []int64
+
+	if techStackIDsStr != "" {
+		if err := json.Unmarshal([]byte(techStackIDsStr), &techStackIDs); err != nil {
+			techStackIDs = util.ParseInterfaceToIntArray(techStackIDsStr)
+		}
+	}
+
+	if tagIDsStr != "" {
+		if err := json.Unmarshal([]byte(tagIDsStr), &tagIDs); err != nil {
+			tagIDs = util.ParseInterfaceToIntArray(tagIDsStr)
+		}
+	}
 
 	// 6. TRANSACTION BLOCK (Wipe & Replace Strategy)
 	var updatedProject db.Project
