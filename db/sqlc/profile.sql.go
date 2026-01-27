@@ -101,12 +101,40 @@ func (q *Queries) DeleteProfile(ctx context.Context, userID int64) (Profile, err
 const getFirstProfile = `-- name: GetFirstProfile :one
 SELECT id, user_id, name, headline, role, bio_short, bio_long, location, is_hireable, avatar, cv_files, hero_image_codes, socials, created_at, updated_at
 FROM profiles
-ORDER BY created_at ASC
-LIMIT 1
+ORDER BY created_at ASC LIMIT 1
 `
 
 func (q *Queries) GetFirstProfile(ctx context.Context) (Profile, error) {
 	row := q.db.QueryRowContext(ctx, getFirstProfile)
+	var i Profile
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Headline,
+		&i.Role,
+		&i.BioShort,
+		&i.BioLong,
+		&i.Location,
+		&i.IsHireable,
+		&i.Avatar,
+		&i.CvFiles,
+		&i.HeroImageCodes,
+		&i.Socials,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getProfileById = `-- name: GetProfileById :one
+SELECT id, user_id, name, headline, role, bio_short, bio_long, location, is_hireable, avatar, cv_files, hero_image_codes, socials, created_at, updated_at
+FROM profiles
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetProfileById(ctx context.Context, id int64) (Profile, error) {
+	row := q.db.QueryRowContext(ctx, getProfileById, id)
 	var i Profile
 	err := row.Scan(
 		&i.ID,

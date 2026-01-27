@@ -62,7 +62,7 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Ser
 	authRoutes.POST("/profiles", server.createProfile)
 	apiRoutes.GET("/profiles/:user_id", server.getProfile)
 	apiRoutes.GET("/profiles", server.getProfiles)
-	authRoutes.PUT("/profiles", server.updateProfile)
+	authRoutes.PUT("/profiles/:id", server.updateProfile)
 	authRoutes.POST("/upload", server.uploadFile)
 	authRoutes.DELETE("/profiles", server.deleteProfile)
 
