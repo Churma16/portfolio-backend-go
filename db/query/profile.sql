@@ -8,6 +8,11 @@ SELECT *
 FROM profiles
 WHERE user_id = $1 LIMIT 1;
 
+-- name: GetProfileById :one
+SELECT *
+FROM profiles
+WHERE id = $1 LIMIT 1;
+
 -- name: GetFirstProfile :one
 SELECT *
 FROM profiles
