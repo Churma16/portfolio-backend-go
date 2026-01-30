@@ -52,9 +52,10 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Ser
 	apiRoutes := router.Group("/api")
 
 	// RUTE PUBLIC (Siapapun boleh akses)
-	apiRoutes.POST("/users", server.createUser)
+	authRoutes.POST("/users", server.createUser)
 	apiRoutes.POST("/login", server.loginUser)
 	apiRoutes.GET("/health", server.health)
+	authRoutes.POST("/change-password", server.changePassword)
 
 	// RUTE PRIVATE (Harus bawa Token)
 

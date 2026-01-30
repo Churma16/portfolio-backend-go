@@ -1,13 +1,14 @@
 package api
 
 import (
-	db "go-portfolio-api/db/sqlc"
-	"go-portfolio-api/internal/response"
-	"go-portfolio-api/internal/util"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	db "go-portfolio-api/db/sqlc"
+	"go-portfolio-api/internal/response"
+	"go-portfolio-api/internal/util"
 )
 
 // Struct untuk validasi input JSON dari Postman/Frontend
@@ -23,17 +24,23 @@ type userResponse struct {
 	CreatedAt string `json:"created_at"` // String biar aman formatnya
 }
 
-// createUser is a handler function for creating a new user.
-// It validates the input, hashes the password, saves the user to the database,
-// and returns a response without exposing the password.
-//
-// @param ctx *gin.Context - The Gin context, which contains the HTTP request and response.
-//
-// The function performs the following steps:
-// 1. Validates the input JSON payload.
-// 2. Hashes the user's password.
-// 3. Saves the user to the database using SQLC.
-// 4. Returns a JSON response with the user's ID, email, and creation timestamp.
+// Struct untuk validasi input JSON login
+type loginUserRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
+// Struct untuk response login
+type loginUserResponse struct {
+	AccessToken string       `json:"access_token"`
+	User        userResponse `json:"user"`
+}
+
+type changePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required,min=6"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
+}
+
 func (server *Server) createUser(ctx *gin.Context) {
 	var req createUserRequest
 
@@ -71,16 +78,6 @@ func (server *Server) createUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, rsp)
-}
-
-type loginUserRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
-}
-
-type loginUserResponse struct {
-	AccessToken string       `json:"access_token"`
-	User        userResponse `json:"user"`
 }
 
 func (server *Server) loginUser(ctx *gin.Context) {
@@ -124,4 +121,53 @@ func (server *Server) loginUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, rsp)
+}
+
+func (server *Server) changePassword(ctx *gin.Context) {
+
+	// Get userID dari context (di-set oleh middleware)
+	userID := ctx.MustGet("user_id").(int64)
+
+	var req changePasswordRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
+		return
+	}
+
+	// 1. Ambil data user dari DB
+	user, err := server.store.GetUserByID(ctx, userID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "User tidak ditemukan"))
+		return
+	}
+
+	// 2. Cek Old Password
+	err = util.CheckPassword(req.OldPassword, user.Password)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, response.ErrorResponse(http.StatusUnauthorized, "error", "Old Password Salah"))
+		return
+	}
+
+	// 3. Hash New Password
+	hashedPassword, err := util.HashPassword(req.NewPassword)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Gagal hash password baru"))
+		return
+	}
+
+	arg := db.UpdateUserPasswordParams{
+		ID:       userID,
+		Password: hashedPassword,
+	}
+
+	// 4. Update Password di DB
+	_, err = server.store.UpdateUserPassword(ctx, arg)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Gagal memperbarui password"))
+		return
+	}
+
+	meta := response.NewMeta(http.StatusOK, "success", "Password berhasil diperbarui")
+	ctx.JSON(http.StatusOK, meta)
+
 }
