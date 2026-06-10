@@ -116,6 +116,7 @@ func (server *Server) createProfile(ctx *gin.Context) {
 	}
 
 	//	Sukses
+	server.redisClient.Del(ctx, "site_profile")
 	rsp := newProfileResponse(profile)
 	ctx.JSON(http.StatusOK, rsp)
 }
@@ -264,6 +265,7 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 		return
 	}
 
+	server.redisClient.Del(ctx, "site_profile")
 	rsp := newProfileResponse(updatedProfile)
 	ctx.JSON(http.StatusOK, rsp)
 }
@@ -280,6 +282,7 @@ func (server *Server) deleteProfile(ctx *gin.Context) {
 	}
 
 	// 3. Response Sukses
+	server.redisClient.Del(ctx, "site_profile")
 	ctx.JSON(http.StatusOK, gin.H{"message": "Profile berhasil dihapus"})
 }
 
