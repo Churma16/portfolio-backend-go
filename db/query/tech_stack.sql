@@ -20,6 +20,18 @@ set name       = $2,
     updated_at = now()
 where id = $1 returning *;
 
+-- name: UpdateTechStackColumnOrder :one
+update tech_stacks
+set column_order = $2,
+    updated_at   = now()
+where id = $1 returning *;
+
+-- name: GetTechStackByColumnOrder :one
+SELECT *
+FROM tech_stacks
+WHERE column_order = $1
+LIMIT 1;
+
 -- name: DeleteTechStack :one
 delete
 from tech_stacks

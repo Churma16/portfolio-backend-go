@@ -10,7 +10,12 @@ WHERE id = $1 LIMIT 1;
 -- name: GetProjects :many
 SELECT *
 FROM projects
-ORDER BY created_at DESC;
+ORDER BY column_order ASC;
+
+-- name: GetProjectByColumnOrder :one
+SELECT *
+FROM projects
+WHERE column_order = $1 LIMIT 1;
 
 -- name: UpdateProject :one
 UPDATE projects
@@ -23,6 +28,12 @@ SET title       = $2,
     category_id = $8,
     published_at = $9,
     updated_at  = now()
+WHERE id = $1 RETURNING *;
+
+-- name: UpdateProjectColumnOrder :one
+UPDATE projects
+SET column_order = $2,
+    updated_at = now()
 WHERE id = $1 RETURNING *;
 
 -- name: DeleteProject :one
@@ -65,6 +76,8 @@ SELECT project_tech_stacks.project_id, tech_stacks.*
 FROM tech_stacks
          JOIN project_tech_stacks ON tech_stacks.id = project_tech_stacks.tech_stack_id
 WHERE project_tech_stacks.project_id = ANY (@project_ids::int[]);
+
+
 
 -- name: GetTagsByProjectID :many
 SELECT project_tags.project_id, tags.*

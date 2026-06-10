@@ -10,7 +10,12 @@ WHERE id = $1 LIMIT 1;
 -- name: GetWorkExperiences :many
 SELECT *
 FROM work_experiences
-ORDER BY created_at DESC;
+ORDER BY column_order ASC;
+
+-- name: GetWorkExperienceByColumnOrder :one
+SELECT *
+FROM work_experiences
+WHERE column_order = $1 LIMIT 1;
 
 -- name: UpdateWorkExperience :one
 update work_experiences
@@ -23,6 +28,12 @@ set company     = $2,
     description = $8,
     updated_at  = now()
 where id = $1 RETURNING *;
+
+-- name: UpdateWorkExperienceColumnOrder :one
+UPDATE work_experiences
+SET column_order = $2,
+    updated_at = now()
+WHERE id = $1 RETURNING *;
 
 -- name: DeleteWorkExperience :one
 DELETE
