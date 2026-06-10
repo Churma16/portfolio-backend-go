@@ -237,10 +237,37 @@ func (q *Queries) GetProject(ctx context.Context, id int64) (Project, error) {
 	return i, err
 }
 
+const getProjectByColumnOrder = `-- name: GetProjectByColumnOrder :one
+SELECT id, title, slug, thumbnail, content, demo_url, repo_url, is_featured, published_at, column_order, category_id, created_at, updated_at
+FROM projects
+WHERE column_order = $1 LIMIT 1
+`
+
+func (q *Queries) GetProjectByColumnOrder(ctx context.Context, columnOrder int32) (Project, error) {
+	row := q.db.QueryRowContext(ctx, getProjectByColumnOrder, columnOrder)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Thumbnail,
+		&i.Content,
+		&i.DemoUrl,
+		&i.RepoUrl,
+		&i.IsFeatured,
+		&i.PublishedAt,
+		&i.ColumnOrder,
+		&i.CategoryID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getProjects = `-- name: GetProjects :many
 SELECT id, title, slug, thumbnail, content, demo_url, repo_url, is_featured, published_at, column_order, category_id, created_at, updated_at
 FROM projects
-ORDER BY created_at DESC
+ORDER BY column_order ASC
 `
 
 func (q *Queries) GetProjects(ctx context.Context) ([]Project, error) {
@@ -418,6 +445,39 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		arg.CategoryID,
 		arg.PublishedAt,
 	)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Thumbnail,
+		&i.Content,
+		&i.DemoUrl,
+		&i.RepoUrl,
+		&i.IsFeatured,
+		&i.PublishedAt,
+		&i.ColumnOrder,
+		&i.CategoryID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateProjectColumnOrder = `-- name: UpdateProjectColumnOrder :one
+UPDATE projects
+SET column_order = $2,
+    updated_at = now()
+WHERE id = $1 RETURNING id, title, slug, thumbnail, content, demo_url, repo_url, is_featured, published_at, column_order, category_id, created_at, updated_at
+`
+
+type UpdateProjectColumnOrderParams struct {
+	ID          int64 `json:"id"`
+	ColumnOrder int32 `json:"column_order"`
+}
+
+func (q *Queries) UpdateProjectColumnOrder(ctx context.Context, arg UpdateProjectColumnOrderParams) (Project, error) {
+	row := q.db.QueryRowContext(ctx, updateProjectColumnOrder, arg.ID, arg.ColumnOrder)
 	var i Project
 	err := row.Scan(
 		&i.ID,

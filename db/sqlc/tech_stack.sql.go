@@ -78,6 +78,28 @@ func (q *Queries) GetTechStack(ctx context.Context, id int64) (TechStack, error)
 	return i, err
 }
 
+const getTechStackByColumnOrder = `-- name: GetTechStackByColumnOrder :one
+SELECT id, name, slug, icon, column_order, created_at, updated_at
+FROM tech_stacks
+WHERE column_order = $1
+LIMIT 1
+`
+
+func (q *Queries) GetTechStackByColumnOrder(ctx context.Context, columnOrder int32) (TechStack, error) {
+	row := q.db.QueryRowContext(ctx, getTechStackByColumnOrder, columnOrder)
+	var i TechStack
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Icon,
+		&i.ColumnOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getTechStacks = `-- name: GetTechStacks :many
 select id, name, slug, icon, column_order, created_at, updated_at
 from tech_stacks
@@ -138,6 +160,33 @@ func (q *Queries) UpdateTechStack(ctx context.Context, arg UpdateTechStackParams
 		arg.Slug,
 		arg.Icon,
 	)
+	var i TechStack
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Icon,
+		&i.ColumnOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateTechStackColumnOrder = `-- name: UpdateTechStackColumnOrder :one
+update tech_stacks
+set column_order = $2,
+    updated_at   = now()
+where id = $1 returning id, name, slug, icon, column_order, created_at, updated_at
+`
+
+type UpdateTechStackColumnOrderParams struct {
+	ID          int64 `json:"id"`
+	ColumnOrder int32 `json:"column_order"`
+}
+
+func (q *Queries) UpdateTechStackColumnOrder(ctx context.Context, arg UpdateTechStackColumnOrderParams) (TechStack, error) {
+	row := q.db.QueryRowContext(ctx, updateTechStackColumnOrder, arg.ID, arg.ColumnOrder)
 	var i TechStack
 	err := row.Scan(
 		&i.ID,

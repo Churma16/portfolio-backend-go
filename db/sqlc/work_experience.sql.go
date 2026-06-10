@@ -79,7 +79,7 @@ func (q *Queries) AttachTechStackToWorkExperience(ctx context.Context, arg Attac
 
 const createWorkExperience = `-- name: CreateWorkExperience :one
 INSERT INTO work_experiences (company, position, location, start_date, end_date, is_current, description)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
 `
 
 type CreateWorkExperienceParams struct {
@@ -114,6 +114,7 @@ func (q *Queries) CreateWorkExperience(ctx context.Context, arg CreateWorkExperi
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ColumnOrder,
 	)
 	return i, err
 }
@@ -121,7 +122,7 @@ func (q *Queries) CreateWorkExperience(ctx context.Context, arg CreateWorkExperi
 const deleteWorkExperience = `-- name: DeleteWorkExperience :one
 DELETE
 FROM work_experiences
-WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
+WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
 `
 
 func (q *Queries) DeleteWorkExperience(ctx context.Context, id int64) (WorkExperience, error) {
@@ -138,6 +139,7 @@ func (q *Queries) DeleteWorkExperience(ctx context.Context, id int64) (WorkExper
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ColumnOrder,
 	)
 	return i, err
 }
@@ -265,7 +267,7 @@ func (q *Queries) GetTechStacksByWorkExperienceID(ctx context.Context, workExper
 }
 
 const getWorkExperience = `-- name: GetWorkExperience :one
-SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
+SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
 FROM work_experiences
 WHERE id = $1 LIMIT 1
 `
@@ -284,14 +286,40 @@ func (q *Queries) GetWorkExperience(ctx context.Context, id int64) (WorkExperien
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ColumnOrder,
+	)
+	return i, err
+}
+
+const getWorkExperienceByColumnOrder = `-- name: GetWorkExperienceByColumnOrder :one
+SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+FROM work_experiences
+WHERE column_order = $1 LIMIT 1
+`
+
+func (q *Queries) GetWorkExperienceByColumnOrder(ctx context.Context, columnOrder int32) (WorkExperience, error) {
+	row := q.db.QueryRowContext(ctx, getWorkExperienceByColumnOrder, columnOrder)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.Company,
+		&i.Position,
+		&i.Location,
+		&i.StartDate,
+		&i.EndDate,
+		&i.IsCurrent,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ColumnOrder,
 	)
 	return i, err
 }
 
 const getWorkExperiences = `-- name: GetWorkExperiences :many
-SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
+SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
 FROM work_experiences
-ORDER BY created_at DESC
+ORDER BY column_order ASC
 `
 
 func (q *Queries) GetWorkExperiences(ctx context.Context) ([]WorkExperience, error) {
@@ -314,6 +342,7 @@ func (q *Queries) GetWorkExperiences(ctx context.Context) ([]WorkExperience, err
 			&i.Description,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ColumnOrder,
 		); err != nil {
 			return nil, err
 		}
@@ -338,7 +367,7 @@ set company     = $2,
     is_current  = $7,
     description = $8,
     updated_at  = now()
-where id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at
+where id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
 `
 
 type UpdateWorkExperienceParams struct {
@@ -375,6 +404,38 @@ func (q *Queries) UpdateWorkExperience(ctx context.Context, arg UpdateWorkExperi
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ColumnOrder,
+	)
+	return i, err
+}
+
+const updateWorkExperienceColumnOrder = `-- name: UpdateWorkExperienceColumnOrder :one
+UPDATE work_experiences
+SET column_order = $2,
+    updated_at = now()
+WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+`
+
+type UpdateWorkExperienceColumnOrderParams struct {
+	ID          int64 `json:"id"`
+	ColumnOrder int32 `json:"column_order"`
+}
+
+func (q *Queries) UpdateWorkExperienceColumnOrder(ctx context.Context, arg UpdateWorkExperienceColumnOrderParams) (WorkExperience, error) {
+	row := q.db.QueryRowContext(ctx, updateWorkExperienceColumnOrder, arg.ID, arg.ColumnOrder)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.Company,
+		&i.Position,
+		&i.Location,
+		&i.StartDate,
+		&i.EndDate,
+		&i.IsCurrent,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ColumnOrder,
 	)
 	return i, err
 }
