@@ -87,6 +87,7 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Ser
 	apiRoutes.GET("/tech-stacks/:id", server.showTechStack)
 	authRoutes.PUT("/tech-stacks/:id", server.updateTechStack)
 	authRoutes.DELETE("/tech-stacks/:id", server.deleteTechStack)
+	authRoutes.POST("/tech-stacks/:id/reorder", server.reorderTechStack)
 
 	// Rute Project
 	authRoutes.POST("/projects", server.createProject)
@@ -94,6 +95,7 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Ser
 	apiRoutes.GET("/projects/:id", server.showProject)
 	authRoutes.PUT("/projects/:id", server.updateProject)
 	authRoutes.DELETE("/projects/:id", server.deleteProject)
+	authRoutes.POST("/projects/:id/reorder", server.reorderProjects)
 
 	// Rute Work Experience
 	authRoutes.POST("/work-experiences", server.createWorkExperience)
@@ -101,6 +103,7 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Ser
 	apiRoutes.GET("/work-experiences/:id", server.showWorkExperience)
 	authRoutes.PUT("/work-experiences/:id", server.updateWorkExperience)
 	authRoutes.DELETE("/work-experiences/:id", server.deleteWorkExperience)
+	authRoutes.POST("/work-experiences/:id/reorder", server.reorderWorkExperiences)
 
 	// Rute Message
 	apiRoutes.POST("/messages", server.rateLimiterMiddleware("3-H"), server.createMessage)
