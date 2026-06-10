@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+  # 1. Aplikasi Go
+  api:
+    build: .
+    container_name: go_portfolio
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_SOURCE=postgresql://root:secret@postgres:5432/portfolio_go?sslmode=disable
+      - REDIS_ADDRESS=redis:6379
+      - REDIS_ADDR=redis:6379
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+    networks:
+      - portfolio_network
+
+  # 2. Database Postgres
+  postgres:
+    image: postgres:15-alpine
+    container_name: go_postgres
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=portfolio_go
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - portfolio_network
+
+  # 3. Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: go_redis
+    restart: always
+    networks:
+      - portfolio_network
+
+volumes:
+  postgres_data:
+
+networks:
+  portfolio_network:
