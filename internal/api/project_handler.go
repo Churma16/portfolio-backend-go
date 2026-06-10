@@ -566,6 +566,88 @@ func (server *Server) deleteProject(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, data))
 }
 
+type reorderProjectRequest struct {
+	Direction string `json:"direction" binding:"required,oneof=up down"`
+}
+
+func (server *Server) reorderProjects(ctx *gin.Context) {
+	// 1. Extract Project ID from URI and Direction from Body
+	projectIDStr := ctx.Param("id")
+	projectID, err := strconv.ParseInt(projectIDStr, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	var req reorderProjectRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Retrieve Current Project
+	currentProject, err := server.store.GetProject(ctx, projectID)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	currentOrder := currentProject.ColumnOrder
+
+	// 3. Determine Target Order & Fetch Adjacent Project
+	var targetOrder int32
+	var adjacentProject db.Project
+
+	if req.Direction == "up" {
+		targetOrder = currentOrder - 1
+		if targetOrder < 1 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move project further up"})
+			return
+		}
+		adjacentProject, err = server.store.GetProjectByColumnOrder(ctx, targetOrder)
+	} else { // down
+		targetOrder = currentOrder + 1
+		adjacentProject, err = server.store.GetProjectByColumnOrder(ctx, targetOrder)
+	}
+
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move project further in that direction"})
+		return
+	}
+
+	// 4. TRANSACTION: Swap Column Orders
+	errTx := server.store.ExecTx(ctx, func(q *db.Queries) error {
+		// Swap: current -> target, adjacent -> current
+		swapParams1 := db.UpdateProjectColumnOrderParams{
+			ID:          currentProject.ID,
+			ColumnOrder: targetOrder, // NEW ORDER
+		}
+
+		swapParams2 := db.UpdateProjectColumnOrderParams{
+			ID:          adjacentProject.ID,
+			ColumnOrder: currentOrder, // SWAP BACK
+		}
+
+		if _, err := q.UpdateProjectColumnOrder(ctx, swapParams1); err != nil {
+			return err
+		}
+		if _, err := q.UpdateProjectColumnOrder(ctx, swapParams2); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if errTx != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": errTx.Error()})
+		return
+	}
+
+	util.DeleteCacheByPrefix(server.redisClient, "projects:")
+	meta := response.NewMeta(http.StatusOK, "success", "Projects reordered successfully")
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, gin.H{"message": "Projects swapped"}))
+}
+
 func projectResponse(project db.Project) projectData {
 	return projectData{
 		ID:          project.ID,

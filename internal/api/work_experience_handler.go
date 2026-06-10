@@ -35,6 +35,7 @@ type workExperienceData struct {
 	EndDate     string `json:"end_date"`
 	IsCurrent   bool   `json:"is_current"`
 	Description string `json:"description"`
+	ColumnOrder int32  `json:"column_order"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 
@@ -378,6 +379,7 @@ func workExperienceResponse(workExperience db.WorkExperience) workExperienceData
 		EndDate:     util.FormatDate(workExperience.EndDate, "Jan 2006"),
 		IsCurrent:   workExperience.IsCurrent.Bool,
 		Description: workExperience.Description.String,
+		ColumnOrder: workExperience.ColumnOrder,
 		CreatedAt:   workExperience.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   workExperience.UpdatedAt.Format("2006-01-02 15:04:05"),
 
@@ -392,4 +394,81 @@ func workExperiencesResponse(workExperiences []db.WorkExperience) []workExperien
 		data[i] = workExperienceResponse(workExperience)
 	}
 	return data
+}
+
+type reorderWorkExperienceRequest struct {
+	Direction string `json:"direction" binding:"required,oneof=up down"`
+}
+
+func (server *Server) reorderWorkExperiences(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	workExpID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid work experience ID"})
+		return
+	}
+
+	var req reorderWorkExperienceRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentWorkExp, err := server.store.GetWorkExperience(ctx, workExpID)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Work experience not found"})
+		return
+	}
+
+	currentOrder := currentWorkExp.ColumnOrder
+
+	var targetOrder int32
+	var adjacentWorkExp db.WorkExperience
+
+	if req.Direction == "up" {
+		targetOrder = currentOrder - 1
+		if targetOrder < 1 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move work experience further up"})
+			return
+		}
+		adjacentWorkExp, err = server.store.GetWorkExperienceByColumnOrder(ctx, targetOrder)
+	} else { // down
+		targetOrder = currentOrder + 1
+		adjacentWorkExp, err = server.store.GetWorkExperienceByColumnOrder(ctx, targetOrder)
+	}
+
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move work experience further in that direction"})
+		return
+	}
+
+	errTx := server.store.ExecTx(ctx, func(q *db.Queries) error {
+		swapParams1 := db.UpdateWorkExperienceColumnOrderParams{
+			ID:          currentWorkExp.ID,
+			ColumnOrder: targetOrder,
+		}
+
+		swapParams2 := db.UpdateWorkExperienceColumnOrderParams{
+			ID:          adjacentWorkExp.ID,
+			ColumnOrder: currentOrder,
+		}
+
+		if _, err := q.UpdateWorkExperienceColumnOrder(ctx, swapParams1); err != nil {
+			return err
+		}
+		if _, err := q.UpdateWorkExperienceColumnOrder(ctx, swapParams2); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if errTx != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": errTx.Error()})
+		return
+	}
+
+	util.DeleteCacheByPrefix(server.redisClient, "workExperiences:")
+	meta := response.NewMeta(http.StatusOK, "success", "Work experiences reordered successfully")
+	ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, gin.H{"message": "Work experiences swapped"}))
 }

@@ -187,6 +187,89 @@ func (server *Server) deleteTechStack(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, resp)
 }
 
+type reorderTechStackRequest struct {
+	Direction string `json:"direction" binding:"required,oneof=up down"`
+}
+
+func (server *Server) reorderTechStack(ctx *gin.Context) {
+	// 1. Extract Tech Stack ID from URI and Direction from Body
+	techStackIDStr := ctx.Param("id")
+	techStackID, err := strconv.ParseInt(techStackIDStr, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid tech stack ID"))
+		return
+	}
+
+	var req reorderTechStackRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", err.Error()))
+		return
+	}
+
+	// 2. Retrieve Current Tech Stack
+	currentTechStack, err := server.store.GetTechStack(ctx, techStackID)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech stack not found"))
+		return
+	}
+
+	currentOrder := currentTechStack.ColumnOrder
+
+	// 3. Determine Target Order & Fetch Adjacent Tech Stack
+	var targetOrder int32
+	var adjacentTechStack db.TechStack
+
+	if req.Direction == "up" {
+		targetOrder = currentOrder - 1
+		if targetOrder < 1 {
+			ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Cannot move tech stack further up"))
+			return
+		}
+		adjacentTechStack, err = server.store.GetTechStackByColumnOrder(ctx, targetOrder)
+	} else { // down
+		targetOrder = currentOrder + 1
+		adjacentTechStack, err = server.store.GetTechStackByColumnOrder(ctx, targetOrder)
+	}
+
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Cannot move tech stack further in that direction"))
+		return
+	}
+
+	// 4. TRANSACTION: Swap Column Orders
+	errTx := server.store.ExecTx(ctx, func(q *db.Queries) error {
+		// Swap: current -> target, adjacent -> current
+		swapParams1 := db.UpdateTechStackColumnOrderParams{
+			ID:          currentTechStack.ID,
+			ColumnOrder: targetOrder, // NEW ORDER
+		}
+
+		swapParams2 := db.UpdateTechStackColumnOrderParams{
+			ID:          adjacentTechStack.ID,
+			ColumnOrder: currentOrder, // SWAP BACK
+		}
+
+		if _, err := q.UpdateTechStackColumnOrder(ctx, swapParams1); err != nil {
+			return err
+		}
+		if _, err := q.UpdateTechStackColumnOrder(ctx, swapParams2); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if errTx != nil {
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", errTx.Error()))
+		return
+	}
+
+	util.DeleteCacheByPrefix(server.redisClient, "tech_stacks:")
+	meta := response.NewMeta(http.StatusOK, "success", "Tech stacks reordered successfully")
+	resp := response.NewSingleDataResponse(meta, gin.H{"message": "Tech stacks swapped"})
+	ctx.JSON(http.StatusOK, resp)
+}
+
 func techStackResponse(techStack db.TechStack) TechStackData {
 	return TechStackData{
 		ID:          techStack.ID,
