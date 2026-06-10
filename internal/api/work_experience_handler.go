@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sqlc-dev/pqtype"
 )
 
 type workExperienceRequest struct {
@@ -24,20 +25,22 @@ type workExperienceRequest struct {
 	Description  string      `json:"description"`
 	TechStackIDs interface{} `json:"tech_stack_ids"`
 	TagIDs       interface{} `json:"tag_ids"`
+	Achievements interface{} `json:"achievements"`
 }
 
 type workExperienceData struct {
-	ID          int64  `json:"id"`
-	Company     string `json:"company"`
-	Position    string `json:"position"`
-	Location    string `json:"location"`
-	StartDate   string `json:"start_date"`
-	EndDate     string `json:"end_date"`
-	IsCurrent   bool   `json:"is_current"`
-	Description string `json:"description"`
-	ColumnOrder int32  `json:"column_order"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID          int64           `json:"id"`
+	Company     string          `json:"company"`
+	Position    string          `json:"position"`
+	Location    string          `json:"location"`
+	StartDate   string          `json:"start_date"`
+	EndDate     string          `json:"end_date"`
+	IsCurrent   bool            `json:"is_current"`
+	Description string          `json:"description"`
+	Achievements json.RawMessage `json:"achievements"`
+	ColumnOrder int32           `json:"column_order"`
+	CreatedAt   string          `json:"created_at"`
+	UpdatedAt   string          `json:"updated_at"`
 
 	TechStacks []TechStackData `json:"tech_stack,omitempty"`
 	Tags       []TagData       `json:"tags,omitempty"`
@@ -57,14 +60,20 @@ func (server *Server) createWorkExperience(ctx *gin.Context) {
 	transactionError := server.store.ExecTx(ctx, func(queries *db.Queries) error {
 		var executionError error
 
+		var achievementsRaw []byte
+		if workExpRequest.Achievements != nil {
+			achievementsRaw, _ = json.Marshal(workExpRequest.Achievements)
+		}
+
 		createWorkExpParam := db.CreateWorkExperienceParams{
-			Company:     workExpRequest.Company,
-			Position:    workExpRequest.Position,
-			Location:    convertToNullString(workExpRequest.Location),
-			StartDate:   convertToNullString(workExpRequest.StartDate),
-			EndDate:     convertToNullString(workExpRequest.EndDate),
-			IsCurrent:   convertToNullBool(workExpRequest.IsCurrent),
-			Description: convertToNullString(workExpRequest.Description),
+			Company:      workExpRequest.Company,
+			Position:     workExpRequest.Position,
+			Location:     convertToNullString(workExpRequest.Location),
+			StartDate:    convertToNullString(workExpRequest.StartDate),
+			EndDate:      convertToNullString(workExpRequest.EndDate),
+			IsCurrent:    convertToNullBool(workExpRequest.IsCurrent),
+			Description:  convertToNullString(workExpRequest.Description),
+			Achievements: pqtype.NullRawMessage{RawMessage: achievementsRaw, Valid: len(achievementsRaw) > 0},
 		}
 
 		newWorkExperience, executionError = queries.CreateWorkExperience(ctx, createWorkExpParam)
@@ -289,15 +298,21 @@ func (server *Server) updateWorkExperience(ctx *gin.Context) {
 		StartDate := util.FormatDate(convertToNullString(workExpRequest.StartDate), "2006-01-02")
 		EndDate := util.FormatDate(convertToNullString(workExpRequest.EndDate), "2006-01-02")
 
+		var achievementsRaw []byte
+		if workExpRequest.Achievements != nil {
+			achievementsRaw, _ = json.Marshal(workExpRequest.Achievements)
+		}
+
 		updateParams := db.UpdateWorkExperienceParams{
-			ID:          id,
-			Company:     workExpRequest.Company,
-			Position:    workExpRequest.Position,
-			Location:    convertToNullString(workExpRequest.Location),
-			StartDate:   convertToNullString(StartDate),
-			EndDate:     convertToNullString(EndDate),
-			IsCurrent:   convertToNullBool(workExpRequest.IsCurrent),
-			Description: convertToNullString(workExpRequest.Description),
+			ID:           id,
+			Company:      workExpRequest.Company,
+			Position:     workExpRequest.Position,
+			Location:     convertToNullString(workExpRequest.Location),
+			StartDate:    convertToNullString(StartDate),
+			EndDate:      convertToNullString(EndDate),
+			IsCurrent:    convertToNullBool(workExpRequest.IsCurrent),
+			Description:  convertToNullString(workExpRequest.Description),
+			Achievements: pqtype.NullRawMessage{RawMessage: achievementsRaw, Valid: len(achievementsRaw) > 0},
 		}
 
 		updatedWorkExp, err = queries.UpdateWorkExperience(ctx, updateParams)
@@ -371,17 +386,18 @@ func (server *Server) deleteWorkExperience(ctx *gin.Context) {
 
 func workExperienceResponse(workExperience db.WorkExperience) workExperienceData {
 	return workExperienceData{
-		ID:          workExperience.ID,
-		Company:     workExperience.Company,
-		Position:    workExperience.Position,
-		Location:    workExperience.Location.String,
-		StartDate:   util.FormatDate(workExperience.StartDate, "Jan 2006"),
-		EndDate:     util.FormatDate(workExperience.EndDate, "Jan 2006"),
-		IsCurrent:   workExperience.IsCurrent.Bool,
-		Description: workExperience.Description.String,
-		ColumnOrder: workExperience.ColumnOrder,
-		CreatedAt:   workExperience.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   workExperience.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ID:           workExperience.ID,
+		Company:      workExperience.Company,
+		Position:     workExperience.Position,
+		Location:     workExperience.Location.String,
+		StartDate:    util.FormatDate(workExperience.StartDate, "Jan 2006"),
+		EndDate:      util.FormatDate(workExperience.EndDate, "Jan 2006"),
+		IsCurrent:    workExperience.IsCurrent.Bool,
+		Description:  workExperience.Description.String,
+		Achievements: workExperience.Achievements.RawMessage,
+		ColumnOrder:  workExperience.ColumnOrder,
+		CreatedAt:    workExperience.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:    workExperience.UpdatedAt.Format("2006-01-02 15:04:05"),
 
 		TechStacks: nil,
 		Tags:       nil,
