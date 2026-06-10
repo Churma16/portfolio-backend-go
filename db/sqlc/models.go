@@ -113,6 +113,7 @@ type WorkExperience struct {
 	Description sql.NullString `json:"description"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
+	ColumnOrder int32          `json:"column_order"`
 }
 
 type WorkExperienceTag struct {
