@@ -52,7 +52,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password, created_at, updated_at FROM users
+SELECT id, email, password, created_at, updated_at
+FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -72,8 +73,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 const updateUserPassword = `-- name: UpdateUserPassword :one
 UPDATE users
 SET password = $2
-WHERE id = $1
-RETURNING id, email, password, created_at, updated_at
+WHERE id = $1 RETURNING id, email, password, created_at, updated_at
 `
 
 type UpdateUserPasswordParams struct {
