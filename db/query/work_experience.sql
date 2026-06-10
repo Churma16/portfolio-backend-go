@@ -1,6 +1,6 @@
 -- name: CreateWorkExperience :one
-INSERT INTO work_experiences (company, position, location, start_date, end_date, is_current, description)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
+INSERT INTO work_experiences (company, position, location, start_date, end_date, is_current, description, achievements)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 
 -- name: GetWorkExperience :one
 SELECT *
@@ -19,14 +19,15 @@ WHERE column_order = $1 LIMIT 1;
 
 -- name: UpdateWorkExperience :one
 update work_experiences
-set company     = $2,
-    position    = $3,
-    location    = $4,
-    start_date  = $5,
-    end_date    = $6,
-    is_current  = $7,
-    description = $8,
-    updated_at  = now()
+set company      = $2,
+    position     = $3,
+    location     = $4,
+    start_date   = $5,
+    end_date     = $6,
+    is_current   = $7,
+    description  = $8,
+    achievements = $9,
+    updated_at   = now()
 where id = $1 RETURNING *;
 
 -- name: UpdateWorkExperienceColumnOrder :one

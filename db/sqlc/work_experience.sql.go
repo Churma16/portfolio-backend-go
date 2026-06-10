@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const addTagToWorkExperience = `-- name: AddTagToWorkExperience :exec
@@ -78,18 +79,19 @@ func (q *Queries) AttachTechStackToWorkExperience(ctx context.Context, arg Attac
 }
 
 const createWorkExperience = `-- name: CreateWorkExperience :one
-INSERT INTO work_experiences (company, position, location, start_date, end_date, is_current, description)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+INSERT INTO work_experiences (company, position, location, start_date, end_date, is_current, description, achievements)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
 `
 
 type CreateWorkExperienceParams struct {
-	Company     string         `json:"company"`
-	Position    string         `json:"position"`
-	Location    sql.NullString `json:"location"`
-	StartDate   sql.NullString `json:"start_date"`
-	EndDate     sql.NullString `json:"end_date"`
-	IsCurrent   sql.NullBool   `json:"is_current"`
-	Description sql.NullString `json:"description"`
+	Company      string                `json:"company"`
+	Position     string                `json:"position"`
+	Location     sql.NullString        `json:"location"`
+	StartDate    sql.NullString        `json:"start_date"`
+	EndDate      sql.NullString        `json:"end_date"`
+	IsCurrent    sql.NullBool          `json:"is_current"`
+	Description  sql.NullString        `json:"description"`
+	Achievements pqtype.NullRawMessage `json:"achievements"`
 }
 
 func (q *Queries) CreateWorkExperience(ctx context.Context, arg CreateWorkExperienceParams) (WorkExperience, error) {
@@ -101,6 +103,7 @@ func (q *Queries) CreateWorkExperience(ctx context.Context, arg CreateWorkExperi
 		arg.EndDate,
 		arg.IsCurrent,
 		arg.Description,
+		arg.Achievements,
 	)
 	var i WorkExperience
 	err := row.Scan(
@@ -115,6 +118,7 @@ func (q *Queries) CreateWorkExperience(ctx context.Context, arg CreateWorkExperi
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ColumnOrder,
+		&i.Achievements,
 	)
 	return i, err
 }
@@ -122,7 +126,7 @@ func (q *Queries) CreateWorkExperience(ctx context.Context, arg CreateWorkExperi
 const deleteWorkExperience = `-- name: DeleteWorkExperience :one
 DELETE
 FROM work_experiences
-WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
 `
 
 func (q *Queries) DeleteWorkExperience(ctx context.Context, id int64) (WorkExperience, error) {
@@ -140,6 +144,7 @@ func (q *Queries) DeleteWorkExperience(ctx context.Context, id int64) (WorkExper
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ColumnOrder,
+		&i.Achievements,
 	)
 	return i, err
 }
@@ -267,7 +272,7 @@ func (q *Queries) GetTechStacksByWorkExperienceID(ctx context.Context, workExper
 }
 
 const getWorkExperience = `-- name: GetWorkExperience :one
-SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
 FROM work_experiences
 WHERE id = $1 LIMIT 1
 `
@@ -287,12 +292,13 @@ func (q *Queries) GetWorkExperience(ctx context.Context, id int64) (WorkExperien
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ColumnOrder,
+		&i.Achievements,
 	)
 	return i, err
 }
 
 const getWorkExperienceByColumnOrder = `-- name: GetWorkExperienceByColumnOrder :one
-SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
 FROM work_experiences
 WHERE column_order = $1 LIMIT 1
 `
@@ -312,12 +318,13 @@ func (q *Queries) GetWorkExperienceByColumnOrder(ctx context.Context, columnOrde
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ColumnOrder,
+		&i.Achievements,
 	)
 	return i, err
 }
 
 const getWorkExperiences = `-- name: GetWorkExperiences :many
-SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
 FROM work_experiences
 ORDER BY column_order ASC
 `
@@ -343,6 +350,7 @@ func (q *Queries) GetWorkExperiences(ctx context.Context) ([]WorkExperience, err
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ColumnOrder,
+			&i.Achievements,
 		); err != nil {
 			return nil, err
 		}
@@ -359,26 +367,28 @@ func (q *Queries) GetWorkExperiences(ctx context.Context) ([]WorkExperience, err
 
 const updateWorkExperience = `-- name: UpdateWorkExperience :one
 update work_experiences
-set company     = $2,
-    position    = $3,
-    location    = $4,
-    start_date  = $5,
-    end_date    = $6,
-    is_current  = $7,
-    description = $8,
-    updated_at  = now()
-where id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+set company      = $2,
+    position     = $3,
+    location     = $4,
+    start_date   = $5,
+    end_date     = $6,
+    is_current   = $7,
+    description  = $8,
+    achievements = $9,
+    updated_at   = now()
+where id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
 `
 
 type UpdateWorkExperienceParams struct {
-	ID          int64          `json:"id"`
-	Company     string         `json:"company"`
-	Position    string         `json:"position"`
-	Location    sql.NullString `json:"location"`
-	StartDate   sql.NullString `json:"start_date"`
-	EndDate     sql.NullString `json:"end_date"`
-	IsCurrent   sql.NullBool   `json:"is_current"`
-	Description sql.NullString `json:"description"`
+	ID           int64                 `json:"id"`
+	Company      string                `json:"company"`
+	Position     string                `json:"position"`
+	Location     sql.NullString        `json:"location"`
+	StartDate    sql.NullString        `json:"start_date"`
+	EndDate      sql.NullString        `json:"end_date"`
+	IsCurrent    sql.NullBool          `json:"is_current"`
+	Description  sql.NullString        `json:"description"`
+	Achievements pqtype.NullRawMessage `json:"achievements"`
 }
 
 func (q *Queries) UpdateWorkExperience(ctx context.Context, arg UpdateWorkExperienceParams) (WorkExperience, error) {
@@ -391,6 +401,7 @@ func (q *Queries) UpdateWorkExperience(ctx context.Context, arg UpdateWorkExperi
 		arg.EndDate,
 		arg.IsCurrent,
 		arg.Description,
+		arg.Achievements,
 	)
 	var i WorkExperience
 	err := row.Scan(
@@ -405,6 +416,7 @@ func (q *Queries) UpdateWorkExperience(ctx context.Context, arg UpdateWorkExperi
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ColumnOrder,
+		&i.Achievements,
 	)
 	return i, err
 }
@@ -413,7 +425,7 @@ const updateWorkExperienceColumnOrder = `-- name: UpdateWorkExperienceColumnOrde
 UPDATE work_experiences
 SET column_order = $2,
     updated_at = now()
-WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order
+WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
 `
 
 type UpdateWorkExperienceColumnOrderParams struct {
@@ -436,6 +448,7 @@ func (q *Queries) UpdateWorkExperienceColumnOrder(ctx context.Context, arg Updat
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ColumnOrder,
+		&i.Achievements,
 	)
 	return i, err
 }

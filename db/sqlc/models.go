@@ -103,17 +103,18 @@ type User struct {
 }
 
 type WorkExperience struct {
-	ID          int64          `json:"id"`
-	Company     string         `json:"company"`
-	Position    string         `json:"position"`
-	Location    sql.NullString `json:"location"`
-	StartDate   sql.NullString `json:"start_date"`
-	EndDate     sql.NullString `json:"end_date"`
-	IsCurrent   sql.NullBool   `json:"is_current"`
-	Description sql.NullString `json:"description"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	ColumnOrder int32          `json:"column_order"`
+	ID           int64                 `json:"id"`
+	Company      string                `json:"company"`
+	Position     string                `json:"position"`
+	Location     sql.NullString        `json:"location"`
+	StartDate    sql.NullString        `json:"start_date"`
+	EndDate      sql.NullString        `json:"end_date"`
+	IsCurrent    sql.NullBool          `json:"is_current"`
+	Description  sql.NullString        `json:"description"`
+	CreatedAt    time.Time             `json:"created_at"`
+	UpdatedAt    time.Time             `json:"updated_at"`
+	ColumnOrder  int32                 `json:"column_order"`
+	Achievements pqtype.NullRawMessage `json:"achievements"`
 }
 
 type WorkExperienceTag struct {
