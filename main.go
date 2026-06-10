@@ -25,8 +25,13 @@ func main() {
 	}
 
 
+	redisAddr := os.Getenv("REDIS_ADDRESS")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379", // Sesuaikan alamat Redis kamu
+		Addr:     redisAddr, // Menggunakan alamat Redis dari env atau fallback ke localhost
 		Password: "",               // Kosongkan jika tidak ada password
 		DB:       0,                // Default DB
 	})
