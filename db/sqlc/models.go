@@ -5,63 +5,60 @@
 package db
 
 import (
-	"database/sql"
-	"time"
-
-	"github.com/sqlc-dev/pqtype"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Category struct {
-	ID        int64          `json:"id"`
-	Name      string         `json:"name"`
-	Slug      string         `json:"slug"`
-	Color     sql.NullString `json:"color"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID        int64              `json:"id"`
+	Name      string             `json:"name"`
+	Slug      string             `json:"slug"`
+	Color     pgtype.Text        `json:"color"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Message struct {
-	ID        int64        `json:"id"`
-	Name      string       `json:"name"`
-	Email     string       `json:"email"`
-	Content   string       `json:"content"`
-	IsRead    sql.NullBool `json:"is_read"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+	ID        int64              `json:"id"`
+	Name      string             `json:"name"`
+	Email     string             `json:"email"`
+	Content   string             `json:"content"`
+	IsRead    pgtype.Bool        `json:"is_read"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Profile struct {
-	ID             int64                 `json:"id"`
-	UserID         int64                 `json:"user_id"`
-	Name           string                `json:"name"`
-	Headline       sql.NullString        `json:"headline"`
-	Role           sql.NullString        `json:"role"`
-	BioShort       sql.NullString        `json:"bio_short"`
-	BioLong        sql.NullString        `json:"bio_long"`
-	Location       sql.NullString        `json:"location"`
-	IsHireable     sql.NullBool          `json:"is_hireable"`
-	Avatar         sql.NullString        `json:"avatar"`
-	CvFiles        sql.NullString        `json:"cv_files"`
-	HeroImageCodes sql.NullString        `json:"hero_image_codes"`
-	Socials        pqtype.NullRawMessage `json:"socials"`
-	CreatedAt      time.Time             `json:"created_at"`
-	UpdatedAt      time.Time             `json:"updated_at"`
+	ID             int64              `json:"id"`
+	UserID         int64              `json:"user_id"`
+	Name           string             `json:"name"`
+	Headline       pgtype.Text        `json:"headline"`
+	Role           pgtype.Text        `json:"role"`
+	BioShort       pgtype.Text        `json:"bio_short"`
+	BioLong        pgtype.Text        `json:"bio_long"`
+	Location       pgtype.Text        `json:"location"`
+	IsHireable     pgtype.Bool        `json:"is_hireable"`
+	Avatar         pgtype.Text        `json:"avatar"`
+	CvFiles        pgtype.Text        `json:"cv_files"`
+	HeroImageCodes pgtype.Text        `json:"hero_image_codes"`
+	Socials        []byte             `json:"socials"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Project struct {
-	ID          int64          `json:"id"`
-	Title       string         `json:"title"`
-	Slug        string         `json:"slug"`
-	Thumbnail   sql.NullString `json:"thumbnail"`
-	Content     sql.NullString `json:"content"`
-	DemoUrl     sql.NullString `json:"demo_url"`
-	RepoUrl     sql.NullString `json:"repo_url"`
-	IsFeatured  sql.NullBool   `json:"is_featured"`
-	PublishedAt sql.NullTime   `json:"published_at"`
-	ColumnOrder int32          `json:"column_order"`
-	CategoryID  sql.NullInt64  `json:"category_id"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID          int64              `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Thumbnail   pgtype.Text        `json:"thumbnail"`
+	Content     pgtype.Text        `json:"content"`
+	DemoUrl     pgtype.Text        `json:"demo_url"`
+	RepoUrl     pgtype.Text        `json:"repo_url"`
+	IsFeatured  pgtype.Bool        `json:"is_featured"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
+	ColumnOrder int32              `json:"column_order"`
+	CategoryID  pgtype.Int8        `json:"category_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type ProjectTag struct {
@@ -75,46 +72,46 @@ type ProjectTechStack struct {
 }
 
 type Tag struct {
-	ID         int64          `json:"id"`
-	Name       string         `json:"name"`
-	Slug       string         `json:"slug"`
-	Color      sql.NullString `json:"color"`
-	CategoryID sql.NullInt64  `json:"category_id"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
+	ID         int64              `json:"id"`
+	Name       string             `json:"name"`
+	Slug       string             `json:"slug"`
+	Color      pgtype.Text        `json:"color"`
+	CategoryID pgtype.Int8        `json:"category_id"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 type TechStack struct {
-	ID          int64          `json:"id"`
-	Name        string         `json:"name"`
-	Slug        string         `json:"slug"`
-	Icon        sql.NullString `json:"icon"`
-	ColumnOrder int32          `json:"column_order"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID          int64              `json:"id"`
+	Name        string             `json:"name"`
+	Slug        string             `json:"slug"`
+	Icon        pgtype.Text        `json:"icon"`
+	ColumnOrder int32              `json:"column_order"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {
-	ID        int64     `json:"id"`
-	Email     string    `json:"email"`
-	Password  string    `json:"password"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64              `json:"id"`
+	Email     string             `json:"email"`
+	Password  string             `json:"password"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type WorkExperience struct {
-	ID           int64                 `json:"id"`
-	Company      string                `json:"company"`
-	Position     string                `json:"position"`
-	Location     sql.NullString        `json:"location"`
-	StartDate    sql.NullString        `json:"start_date"`
-	EndDate      sql.NullString        `json:"end_date"`
-	IsCurrent    sql.NullBool          `json:"is_current"`
-	Description  sql.NullString        `json:"description"`
-	CreatedAt    time.Time             `json:"created_at"`
-	UpdatedAt    time.Time             `json:"updated_at"`
-	ColumnOrder  int32                 `json:"column_order"`
-	Achievements pqtype.NullRawMessage `json:"achievements"`
+	ID           int64              `json:"id"`
+	Company      string             `json:"company"`
+	Position     string             `json:"position"`
+	Location     pgtype.Text        `json:"location"`
+	StartDate    pgtype.Text        `json:"start_date"`
+	EndDate      pgtype.Text        `json:"end_date"`
+	IsCurrent    pgtype.Bool        `json:"is_current"`
+	Description  pgtype.Text        `json:"description"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	ColumnOrder  int32              `json:"column_order"`
+	Achievements []byte             `json:"achievements"`
 }
 
 type WorkExperienceTag struct {

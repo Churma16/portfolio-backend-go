@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
+	"github.com/jackc/pgx/v5"
 )
 
 type CreateTechStackRequest struct {
@@ -130,7 +130,7 @@ func (server *Server) updateTechStack(ctx *gin.Context) {
 
 	existingTechStack, err := server.store.GetTechStack(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech Stack not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -277,8 +277,8 @@ func techStackResponse(techStack db.TechStack) TechStackData {
 		Slug:        techStack.Slug,
 		Icon:        techStack.Icon.String,
 		ColumnOrder: techStack.ColumnOrder,
-		CreatedAt:   techStack.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   techStack.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt:   techStack.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   techStack.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -291,8 +291,8 @@ func TechStacksResponse(techStacks []db.TechStack) []TechStackData {
 			Slug:        techStack.Slug,
 			Icon:        techStack.Icon.String,
 			ColumnOrder: techStack.ColumnOrder,
-			CreatedAt:   techStack.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:   techStack.UpdatedAt.Format("2006-01-02 15:04:05"),
+			CreatedAt:   techStack.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   techStack.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 		}
 	}
 	return data

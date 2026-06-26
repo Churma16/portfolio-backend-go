@@ -7,7 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createTechStack = `-- name: CreateTechStack :one
@@ -16,13 +17,13 @@ values ($1, $2, $3) returning id, name, slug, icon, column_order, created_at, up
 `
 
 type CreateTechStackParams struct {
-	Name string         `json:"name"`
-	Slug string         `json:"slug"`
-	Icon sql.NullString `json:"icon"`
+	Name string      `json:"name"`
+	Slug string      `json:"slug"`
+	Icon pgtype.Text `json:"icon"`
 }
 
 func (q *Queries) CreateTechStack(ctx context.Context, arg CreateTechStackParams) (TechStack, error) {
-	row := q.db.QueryRowContext(ctx, createTechStack, arg.Name, arg.Slug, arg.Icon)
+	row := q.db.QueryRow(ctx, createTechStack, arg.Name, arg.Slug, arg.Icon)
 	var i TechStack
 	err := row.Scan(
 		&i.ID,
@@ -43,7 +44,7 @@ where id = $1 returning id, name, slug, icon, column_order, created_at, updated_
 `
 
 func (q *Queries) DeleteTechStack(ctx context.Context, id int64) (TechStack, error) {
-	row := q.db.QueryRowContext(ctx, deleteTechStack, id)
+	row := q.db.QueryRow(ctx, deleteTechStack, id)
 	var i TechStack
 	err := row.Scan(
 		&i.ID,
@@ -64,7 +65,7 @@ where id = $1 limit 1
 `
 
 func (q *Queries) GetTechStack(ctx context.Context, id int64) (TechStack, error) {
-	row := q.db.QueryRowContext(ctx, getTechStack, id)
+	row := q.db.QueryRow(ctx, getTechStack, id)
 	var i TechStack
 	err := row.Scan(
 		&i.ID,
@@ -86,7 +87,7 @@ LIMIT 1
 `
 
 func (q *Queries) GetTechStackByColumnOrder(ctx context.Context, columnOrder int32) (TechStack, error) {
-	row := q.db.QueryRowContext(ctx, getTechStackByColumnOrder, columnOrder)
+	row := q.db.QueryRow(ctx, getTechStackByColumnOrder, columnOrder)
 	var i TechStack
 	err := row.Scan(
 		&i.ID,
@@ -107,7 +108,7 @@ order by column_order
 `
 
 func (q *Queries) GetTechStacks(ctx context.Context) ([]TechStack, error) {
-	rows, err := q.db.QueryContext(ctx, getTechStacks)
+	rows, err := q.db.Query(ctx, getTechStacks)
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +129,6 @@ func (q *Queries) GetTechStacks(ctx context.Context) ([]TechStack, error) {
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -147,14 +145,14 @@ where id = $1 returning id, name, slug, icon, column_order, created_at, updated_
 `
 
 type UpdateTechStackParams struct {
-	ID   int64          `json:"id"`
-	Name string         `json:"name"`
-	Slug string         `json:"slug"`
-	Icon sql.NullString `json:"icon"`
+	ID   int64       `json:"id"`
+	Name string      `json:"name"`
+	Slug string      `json:"slug"`
+	Icon pgtype.Text `json:"icon"`
 }
 
 func (q *Queries) UpdateTechStack(ctx context.Context, arg UpdateTechStackParams) (TechStack, error) {
-	row := q.db.QueryRowContext(ctx, updateTechStack,
+	row := q.db.QueryRow(ctx, updateTechStack,
 		arg.ID,
 		arg.Name,
 		arg.Slug,
@@ -186,7 +184,7 @@ type UpdateTechStackColumnOrderParams struct {
 }
 
 func (q *Queries) UpdateTechStackColumnOrder(ctx context.Context, arg UpdateTechStackColumnOrderParams) (TechStack, error) {
-	row := q.db.QueryRowContext(ctx, updateTechStackColumnOrder, arg.ID, arg.ColumnOrder)
+	row := q.db.QueryRow(ctx, updateTechStackColumnOrder, arg.ID, arg.ColumnOrder)
 	var i TechStack
 	err := row.Scan(
 		&i.ID,

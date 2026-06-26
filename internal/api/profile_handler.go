@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/sqlc-dev/pqtype"
 )
 
 // Struct request pakai tag 'form' bukan 'json'
@@ -106,7 +105,7 @@ func (server *Server) createProfile(ctx *gin.Context) {
 		Avatar:         convertToNullString(avatarUrl),
 		CvFiles:        convertToNullString(cvUrl),
 		HeroImageCodes: convertToNullString(req.HeroImageCodes),
-		Socials:        pqtype.NullRawMessage{RawMessage: socialsRaw, Valid: len(socialsRaw) > 0},
+		Socials:        socialsRaw,
 	}
 
 	profile, err := server.store.CreateProfile(ctx, arg)
@@ -240,7 +239,7 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 		socialsRaw = json.RawMessage(req.Socials)
 	} else {
 		// Kalau user kirim string kosong, kita pakai socials yang lama
-		socialsRaw = oldProfile.Socials.RawMessage
+		socialsRaw = oldProfile.Socials
 	}
 
 	// 6. Eksekusi Update ke DB
@@ -256,7 +255,7 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 		Avatar:         convertToNullString(finalAvatar), // <-- Pakai variabel final
 		CvFiles:        convertToNullString(finalCV),     // <-- Pakai variabel final
 		HeroImageCodes: convertToNullString(req.HeroImageCodes),
-		Socials:        pqtype.NullRawMessage{RawMessage: socialsRaw, Valid: len(socialsRaw) > 0},
+		Socials:        socialsRaw,
 	}
 
 	updatedProfile, err := server.store.UpdateProfile(ctx, arg)
@@ -300,8 +299,8 @@ func newProfileResponse(profile db.Profile) profileResponse {
 		Avatar:         profile.Avatar.String,
 		CvFiles:        profile.CvFiles.String,
 		HeroImageCodes: profile.HeroImageCodes.String,
-		Socials:        profile.Socials.RawMessage,
-		CreatedAt:      profile.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      profile.UpdatedAt.Format(time.RFC3339),
+		Socials:        profile.Socials,
+		CreatedAt:      profile.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt:      profile.UpdatedAt.Time.Format(time.RFC3339),
 	}
 }

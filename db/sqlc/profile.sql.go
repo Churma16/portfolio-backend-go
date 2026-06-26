@@ -7,9 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/sqlc-dev/pqtype"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createProfile = `-- name: CreateProfile :one
@@ -19,22 +18,22 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, user_id
 `
 
 type CreateProfileParams struct {
-	UserID         int64                 `json:"user_id"`
-	Name           string                `json:"name"`
-	Headline       sql.NullString        `json:"headline"`
-	Role           sql.NullString        `json:"role"`
-	BioShort       sql.NullString        `json:"bio_short"`
-	BioLong        sql.NullString        `json:"bio_long"`
-	Location       sql.NullString        `json:"location"`
-	IsHireable     sql.NullBool          `json:"is_hireable"`
-	Avatar         sql.NullString        `json:"avatar"`
-	CvFiles        sql.NullString        `json:"cv_files"`
-	HeroImageCodes sql.NullString        `json:"hero_image_codes"`
-	Socials        pqtype.NullRawMessage `json:"socials"`
+	UserID         int64       `json:"user_id"`
+	Name           string      `json:"name"`
+	Headline       pgtype.Text `json:"headline"`
+	Role           pgtype.Text `json:"role"`
+	BioShort       pgtype.Text `json:"bio_short"`
+	BioLong        pgtype.Text `json:"bio_long"`
+	Location       pgtype.Text `json:"location"`
+	IsHireable     pgtype.Bool `json:"is_hireable"`
+	Avatar         pgtype.Text `json:"avatar"`
+	CvFiles        pgtype.Text `json:"cv_files"`
+	HeroImageCodes pgtype.Text `json:"hero_image_codes"`
+	Socials        []byte      `json:"socials"`
 }
 
 func (q *Queries) CreateProfile(ctx context.Context, arg CreateProfileParams) (Profile, error) {
-	row := q.db.QueryRowContext(ctx, createProfile,
+	row := q.db.QueryRow(ctx, createProfile,
 		arg.UserID,
 		arg.Name,
 		arg.Headline,
@@ -76,7 +75,7 @@ where user_id = $1 returning id, user_id, name, headline, role, bio_short, bio_l
 `
 
 func (q *Queries) DeleteProfile(ctx context.Context, userID int64) (Profile, error) {
-	row := q.db.QueryRowContext(ctx, deleteProfile, userID)
+	row := q.db.QueryRow(ctx, deleteProfile, userID)
 	var i Profile
 	err := row.Scan(
 		&i.ID,
@@ -105,7 +104,7 @@ ORDER BY created_at ASC LIMIT 1
 `
 
 func (q *Queries) GetFirstProfile(ctx context.Context) (Profile, error) {
-	row := q.db.QueryRowContext(ctx, getFirstProfile)
+	row := q.db.QueryRow(ctx, getFirstProfile)
 	var i Profile
 	err := row.Scan(
 		&i.ID,
@@ -134,7 +133,7 @@ WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetProfileById(ctx context.Context, id int64) (Profile, error) {
-	row := q.db.QueryRowContext(ctx, getProfileById, id)
+	row := q.db.QueryRow(ctx, getProfileById, id)
 	var i Profile
 	err := row.Scan(
 		&i.ID,
@@ -163,7 +162,7 @@ WHERE user_id = $1 LIMIT 1
 `
 
 func (q *Queries) GetProfileByUserId(ctx context.Context, userID int64) (Profile, error) {
-	row := q.db.QueryRowContext(ctx, getProfileByUserId, userID)
+	row := q.db.QueryRow(ctx, getProfileByUserId, userID)
 	var i Profile
 	err := row.Scan(
 		&i.ID,
@@ -203,22 +202,22 @@ WHERE user_id = $1 RETURNING id, user_id, name, headline, role, bio_short, bio_l
 `
 
 type UpdateProfileParams struct {
-	UserID         int64                 `json:"user_id"`
-	Name           string                `json:"name"`
-	Headline       sql.NullString        `json:"headline"`
-	Role           sql.NullString        `json:"role"`
-	BioShort       sql.NullString        `json:"bio_short"`
-	BioLong        sql.NullString        `json:"bio_long"`
-	Location       sql.NullString        `json:"location"`
-	IsHireable     sql.NullBool          `json:"is_hireable"`
-	Avatar         sql.NullString        `json:"avatar"`
-	CvFiles        sql.NullString        `json:"cv_files"`
-	HeroImageCodes sql.NullString        `json:"hero_image_codes"`
-	Socials        pqtype.NullRawMessage `json:"socials"`
+	UserID         int64       `json:"user_id"`
+	Name           string      `json:"name"`
+	Headline       pgtype.Text `json:"headline"`
+	Role           pgtype.Text `json:"role"`
+	BioShort       pgtype.Text `json:"bio_short"`
+	BioLong        pgtype.Text `json:"bio_long"`
+	Location       pgtype.Text `json:"location"`
+	IsHireable     pgtype.Bool `json:"is_hireable"`
+	Avatar         pgtype.Text `json:"avatar"`
+	CvFiles        pgtype.Text `json:"cv_files"`
+	HeroImageCodes pgtype.Text `json:"hero_image_codes"`
+	Socials        []byte      `json:"socials"`
 }
 
 func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (Profile, error) {
-	row := q.db.QueryRowContext(ctx, updateProfile,
+	row := q.db.QueryRow(ctx, updateProfile,
 		arg.UserID,
 		arg.Name,
 		arg.Headline,

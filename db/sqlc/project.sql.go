@@ -7,10 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addTagToProject = `-- name: AddTagToProject :exec
@@ -24,7 +22,7 @@ type AddTagToProjectParams struct {
 }
 
 func (q *Queries) AddTagToProject(ctx context.Context, arg AddTagToProjectParams) error {
-	_, err := q.db.ExecContext(ctx, addTagToProject, arg.ProjectID, arg.TagID)
+	_, err := q.db.Exec(ctx, addTagToProject, arg.ProjectID, arg.TagID)
 	return err
 }
 
@@ -39,7 +37,7 @@ type AddTechStackToProjectParams struct {
 }
 
 func (q *Queries) AddTechStackToProject(ctx context.Context, arg AddTechStackToProjectParams) error {
-	_, err := q.db.ExecContext(ctx, addTechStackToProject, arg.ProjectID, arg.TechStackID)
+	_, err := q.db.Exec(ctx, addTechStackToProject, arg.ProjectID, arg.TechStackID)
 	return err
 }
 
@@ -54,7 +52,7 @@ type AttachTagToProjectParams struct {
 }
 
 func (q *Queries) AttachTagToProject(ctx context.Context, arg AttachTagToProjectParams) error {
-	_, err := q.db.ExecContext(ctx, attachTagToProject, arg.ProjectID, arg.TagID)
+	_, err := q.db.Exec(ctx, attachTagToProject, arg.ProjectID, arg.TagID)
 	return err
 }
 
@@ -73,7 +71,7 @@ type AttachTechStackToProjectParams struct {
 // PIVOT TABLE QUERIES
 // =============================================
 func (q *Queries) AttachTechStackToProject(ctx context.Context, arg AttachTechStackToProjectParams) error {
-	_, err := q.db.ExecContext(ctx, attachTechStackToProject, arg.ProjectID, arg.TechStackID)
+	_, err := q.db.Exec(ctx, attachTechStackToProject, arg.ProjectID, arg.TechStackID)
 	return err
 }
 
@@ -83,19 +81,19 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, slug, thumbnail
 `
 
 type CreateProjectParams struct {
-	Title       string         `json:"title"`
-	Slug        string         `json:"slug"`
-	Thumbnail   sql.NullString `json:"thumbnail"`
-	Content     sql.NullString `json:"content"`
-	DemoUrl     sql.NullString `json:"demo_url"`
-	RepoUrl     sql.NullString `json:"repo_url"`
-	IsFeatured  sql.NullBool   `json:"is_featured"`
-	PublishedAt sql.NullTime   `json:"published_at"`
-	CategoryID  sql.NullInt64  `json:"category_id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Thumbnail   pgtype.Text        `json:"thumbnail"`
+	Content     pgtype.Text        `json:"content"`
+	DemoUrl     pgtype.Text        `json:"demo_url"`
+	RepoUrl     pgtype.Text        `json:"repo_url"`
+	IsFeatured  pgtype.Bool        `json:"is_featured"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
+	CategoryID  pgtype.Int8        `json:"category_id"`
 }
 
 func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error) {
-	row := q.db.QueryRowContext(ctx, createProject,
+	row := q.db.QueryRow(ctx, createProject,
 		arg.Title,
 		arg.Slug,
 		arg.Thumbnail,
@@ -132,7 +130,7 @@ WHERE id = $1 RETURNING id, title, slug, thumbnail, content, demo_url, repo_url,
 `
 
 func (q *Queries) DeleteProject(ctx context.Context, id int64) (Project, error) {
-	row := q.db.QueryRowContext(ctx, deleteProject, id)
+	row := q.db.QueryRow(ctx, deleteProject, id)
 	var i Project
 	err := row.Scan(
 		&i.ID,
@@ -159,7 +157,7 @@ WHERE project_id = $1
 `
 
 func (q *Queries) DeleteProjectTags(ctx context.Context, projectID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteProjectTags, projectID)
+	_, err := q.db.Exec(ctx, deleteProjectTags, projectID)
 	return err
 }
 
@@ -170,7 +168,7 @@ WHERE project_id = $1
 `
 
 func (q *Queries) DeleteProjectTechStacks(ctx context.Context, projectID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteProjectTechStacks, projectID)
+	_, err := q.db.Exec(ctx, deleteProjectTechStacks, projectID)
 	return err
 }
 
@@ -181,7 +179,7 @@ WHERE id = ANY ($1::int[])
 `
 
 func (q *Queries) GetCategoriesByIDs(ctx context.Context, categoryIds []int32) ([]Category, error) {
-	rows, err := q.db.QueryContext(ctx, getCategoriesByIDs, pq.Array(categoryIds))
+	rows, err := q.db.Query(ctx, getCategoriesByIDs, categoryIds)
 	if err != nil {
 		return nil, err
 	}
@@ -201,9 +199,6 @@ func (q *Queries) GetCategoriesByIDs(ctx context.Context, categoryIds []int32) (
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -217,7 +212,7 @@ WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetProject(ctx context.Context, id int64) (Project, error) {
-	row := q.db.QueryRowContext(ctx, getProject, id)
+	row := q.db.QueryRow(ctx, getProject, id)
 	var i Project
 	err := row.Scan(
 		&i.ID,
@@ -244,7 +239,7 @@ WHERE column_order = $1 LIMIT 1
 `
 
 func (q *Queries) GetProjectByColumnOrder(ctx context.Context, columnOrder int32) (Project, error) {
-	row := q.db.QueryRowContext(ctx, getProjectByColumnOrder, columnOrder)
+	row := q.db.QueryRow(ctx, getProjectByColumnOrder, columnOrder)
 	var i Project
 	err := row.Scan(
 		&i.ID,
@@ -271,7 +266,7 @@ ORDER BY column_order ASC
 `
 
 func (q *Queries) GetProjects(ctx context.Context) ([]Project, error) {
-	rows, err := q.db.QueryContext(ctx, getProjects)
+	rows, err := q.db.Query(ctx, getProjects)
 	if err != nil {
 		return nil, err
 	}
@@ -298,9 +293,6 @@ func (q *Queries) GetProjects(ctx context.Context) ([]Project, error) {
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -315,18 +307,18 @@ WHERE project_tags.project_id = ANY ($1::int[])
 `
 
 type GetTagsByProjectIDRow struct {
-	ProjectID  int64          `json:"project_id"`
-	ID         int64          `json:"id"`
-	Name       string         `json:"name"`
-	Slug       string         `json:"slug"`
-	Color      sql.NullString `json:"color"`
-	CategoryID sql.NullInt64  `json:"category_id"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
+	ProjectID  int64              `json:"project_id"`
+	ID         int64              `json:"id"`
+	Name       string             `json:"name"`
+	Slug       string             `json:"slug"`
+	Color      pgtype.Text        `json:"color"`
+	CategoryID pgtype.Int8        `json:"category_id"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetTagsByProjectID(ctx context.Context, projectIds []int32) ([]GetTagsByProjectIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTagsByProjectID, pq.Array(projectIds))
+	rows, err := q.db.Query(ctx, getTagsByProjectID, projectIds)
 	if err != nil {
 		return nil, err
 	}
@@ -348,9 +340,6 @@ func (q *Queries) GetTagsByProjectID(ctx context.Context, projectIds []int32) ([
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -365,18 +354,18 @@ WHERE project_tech_stacks.project_id = ANY ($1::int[])
 `
 
 type GetTechStacksByProjectIDRow struct {
-	ProjectID   int64          `json:"project_id"`
-	ID          int64          `json:"id"`
-	Name        string         `json:"name"`
-	Slug        string         `json:"slug"`
-	Icon        sql.NullString `json:"icon"`
-	ColumnOrder int32          `json:"column_order"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ProjectID   int64              `json:"project_id"`
+	ID          int64              `json:"id"`
+	Name        string             `json:"name"`
+	Slug        string             `json:"slug"`
+	Icon        pgtype.Text        `json:"icon"`
+	ColumnOrder int32              `json:"column_order"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetTechStacksByProjectID(ctx context.Context, projectIds []int32) ([]GetTechStacksByProjectIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTechStacksByProjectID, pq.Array(projectIds))
+	rows, err := q.db.Query(ctx, getTechStacksByProjectID, projectIds)
 	if err != nil {
 		return nil, err
 	}
@@ -397,9 +386,6 @@ func (q *Queries) GetTechStacksByProjectID(ctx context.Context, projectIds []int
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -422,19 +408,19 @@ WHERE id = $1 RETURNING id, title, slug, thumbnail, content, demo_url, repo_url,
 `
 
 type UpdateProjectParams struct {
-	ID          int64          `json:"id"`
-	Title       string         `json:"title"`
-	Slug        string         `json:"slug"`
-	Thumbnail   sql.NullString `json:"thumbnail"`
-	Content     sql.NullString `json:"content"`
-	DemoUrl     sql.NullString `json:"demo_url"`
-	RepoUrl     sql.NullString `json:"repo_url"`
-	CategoryID  sql.NullInt64  `json:"category_id"`
-	PublishedAt sql.NullTime   `json:"published_at"`
+	ID          int64              `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Thumbnail   pgtype.Text        `json:"thumbnail"`
+	Content     pgtype.Text        `json:"content"`
+	DemoUrl     pgtype.Text        `json:"demo_url"`
+	RepoUrl     pgtype.Text        `json:"repo_url"`
+	CategoryID  pgtype.Int8        `json:"category_id"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
 }
 
 func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {
-	row := q.db.QueryRowContext(ctx, updateProject,
+	row := q.db.QueryRow(ctx, updateProject,
 		arg.ID,
 		arg.Title,
 		arg.Slug,
@@ -477,7 +463,7 @@ type UpdateProjectColumnOrderParams struct {
 }
 
 func (q *Queries) UpdateProjectColumnOrder(ctx context.Context, arg UpdateProjectColumnOrderParams) (Project, error) {
-	row := q.db.QueryRowContext(ctx, updateProjectColumnOrder, arg.ID, arg.ColumnOrder)
+	row := q.db.QueryRow(ctx, updateProjectColumnOrder, arg.ID, arg.ColumnOrder)
 	var i Project
 	err := row.Scan(
 		&i.ID,

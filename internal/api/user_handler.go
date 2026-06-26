@@ -74,7 +74,7 @@ func (server *Server) createUser(ctx *gin.Context) {
 	rsp := userResponse{
 		ID:        user.ID,
 		Email:     user.Email,
-		CreatedAt: user.CreatedAt.Format(time.RFC3339),
+		CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
 	}
 
 	ctx.JSON(http.StatusOK, rsp)
@@ -116,7 +116,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		User: userResponse{
 			ID:        user.ID,
 			Email:     user.Email,
-			CreatedAt: user.CreatedAt.Format(time.RFC3339),
+			CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
 		},
 	}
 

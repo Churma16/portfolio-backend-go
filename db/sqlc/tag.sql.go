@@ -7,7 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createTag = `-- name: CreateTag :one
@@ -16,14 +17,14 @@ VALUES ($1, $2, $3, $4) RETURNING id, name, slug, color, category_id, created_at
 `
 
 type CreateTagParams struct {
-	Name       string         `json:"name"`
-	Slug       string         `json:"slug"`
-	Color      sql.NullString `json:"color"`
-	CategoryID sql.NullInt64  `json:"category_id"`
+	Name       string      `json:"name"`
+	Slug       string      `json:"slug"`
+	Color      pgtype.Text `json:"color"`
+	CategoryID pgtype.Int8 `json:"category_id"`
 }
 
 func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error) {
-	row := q.db.QueryRowContext(ctx, createTag,
+	row := q.db.QueryRow(ctx, createTag,
 		arg.Name,
 		arg.Slug,
 		arg.Color,
@@ -49,7 +50,7 @@ WHERE id = $1 RETURNING id, name, slug, color, category_id, created_at, updated_
 `
 
 func (q *Queries) DeleteTag(ctx context.Context, id int64) (Tag, error) {
-	row := q.db.QueryRowContext(ctx, deleteTag, id)
+	row := q.db.QueryRow(ctx, deleteTag, id)
 	var i Tag
 	err := row.Scan(
 		&i.ID,
@@ -70,7 +71,7 @@ WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetTag(ctx context.Context, id int64) (Tag, error) {
-	row := q.db.QueryRowContext(ctx, getTag, id)
+	row := q.db.QueryRow(ctx, getTag, id)
 	var i Tag
 	err := row.Scan(
 		&i.ID,
@@ -91,7 +92,7 @@ ORDER BY name
 `
 
 func (q *Queries) GetTags(ctx context.Context) ([]Tag, error) {
-	rows, err := q.db.QueryContext(ctx, getTags)
+	rows, err := q.db.Query(ctx, getTags)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +113,6 @@ func (q *Queries) GetTags(ctx context.Context) ([]Tag, error) {
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -132,15 +130,15 @@ WHERE id = $1 RETURNING id, name, slug, color, category_id, created_at, updated_
 `
 
 type UpdateTagParams struct {
-	ID         int64          `json:"id"`
-	Name       string         `json:"name"`
-	Slug       string         `json:"slug"`
-	Color      sql.NullString `json:"color"`
-	CategoryID sql.NullInt64  `json:"category_id"`
+	ID         int64       `json:"id"`
+	Name       string      `json:"name"`
+	Slug       string      `json:"slug"`
+	Color      pgtype.Text `json:"color"`
+	CategoryID pgtype.Int8 `json:"category_id"`
 }
 
 func (q *Queries) UpdateTag(ctx context.Context, arg UpdateTagParams) (Tag, error) {
-	row := q.db.QueryRowContext(ctx, updateTag,
+	row := q.db.QueryRow(ctx, updateTag,
 		arg.ID,
 		arg.Name,
 		arg.Slug,

@@ -21,7 +21,7 @@ type CreateMessageParams struct {
 }
 
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
-	row := q.db.QueryRowContext(ctx, createMessage, arg.Name, arg.Email, arg.Content)
+	row := q.db.QueryRow(ctx, createMessage, arg.Name, arg.Email, arg.Content)
 	var i Message
 	err := row.Scan(
 		&i.ID,

@@ -2,28 +2,29 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Store menyediakan semua fungsi query + fungsi transaction
 type Store struct {
 	*Queries
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // NewStore membuat instance Store baru
-func NewStore(database *sql.DB) *Store {
+func NewStore(database *pgxpool.Pool) *Store {
 	return &Store{
 		db:      database,
 		Queries: New(database),
 	}
 }
 
-// execTx menjalankan fungsi di dalam database transaction
-func (store *Store) ExecTx(context context.Context, transactionFunc func(*Queries) error) error {
+// ExecTx menjalankan fungsi di dalam database transaction
+func (store *Store) ExecTx(ctx context.Context, transactionFunc func(*Queries) error) error {
 	// Begin a new transaction
-	transaction, transactionError := store.db.BeginTx(context, nil)
+	transaction, transactionError := store.db.Begin(ctx)
 	if transactionError != nil {
 		return transactionError
 	}
@@ -32,7 +33,7 @@ func (store *Store) ExecTx(context context.Context, transactionFunc func(*Querie
 	executionError := transactionFunc(queries)
 	if executionError != nil {
 		// Rollback the transaction in case of an error
-		rollbackError := transaction.Rollback()
+		rollbackError := transaction.Rollback(ctx)
 		if rollbackError != nil {
 			return fmt.Errorf("transaction error: %v, rollback error: %v", executionError, rollbackError)
 		}
@@ -40,5 +41,5 @@ func (store *Store) ExecTx(context context.Context, transactionFunc func(*Querie
 	}
 
 	// Commit the transaction
-	return transaction.Commit()
+	return transaction.Commit(ctx)
 }

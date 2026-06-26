@@ -7,7 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createCategory = `-- name: CreateCategory :one
@@ -16,13 +17,13 @@ values ($1, $2, $3) returning id, name, slug, color, created_at, updated_at
 `
 
 type CreateCategoryParams struct {
-	Name  string         `json:"name"`
-	Slug  string         `json:"slug"`
-	Color sql.NullString `json:"color"`
+	Name  string      `json:"name"`
+	Slug  string      `json:"slug"`
+	Color pgtype.Text `json:"color"`
 }
 
 func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error) {
-	row := q.db.QueryRowContext(ctx, createCategory, arg.Name, arg.Slug, arg.Color)
+	row := q.db.QueryRow(ctx, createCategory, arg.Name, arg.Slug, arg.Color)
 	var i Category
 	err := row.Scan(
 		&i.ID,
@@ -42,7 +43,7 @@ where id = $1 returning id, name, slug, color, created_at, updated_at
 `
 
 func (q *Queries) DeleteCategory(ctx context.Context, id int64) (Category, error) {
-	row := q.db.QueryRowContext(ctx, deleteCategory, id)
+	row := q.db.QueryRow(ctx, deleteCategory, id)
 	var i Category
 	err := row.Scan(
 		&i.ID,
@@ -61,7 +62,7 @@ from categories
 `
 
 func (q *Queries) GetCategories(ctx context.Context) ([]Category, error) {
-	rows, err := q.db.QueryContext(ctx, getCategories)
+	rows, err := q.db.Query(ctx, getCategories)
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +82,6 @@ func (q *Queries) GetCategories(ctx context.Context) ([]Category, error) {
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -97,7 +95,7 @@ where id = $1 limit 1
 `
 
 func (q *Queries) GetCategory(ctx context.Context, id int64) (Category, error) {
-	row := q.db.QueryRowContext(ctx, getCategory, id)
+	row := q.db.QueryRow(ctx, getCategory, id)
 	var i Category
 	err := row.Scan(
 		&i.ID,
@@ -120,14 +118,14 @@ where id = $1 returning id, name, slug, color, created_at, updated_at
 `
 
 type UpdateCategoryParams struct {
-	ID    int64          `json:"id"`
-	Name  string         `json:"name"`
-	Slug  string         `json:"slug"`
-	Color sql.NullString `json:"color"`
+	ID    int64       `json:"id"`
+	Name  string      `json:"name"`
+	Slug  string      `json:"slug"`
+	Color pgtype.Text `json:"color"`
 }
 
 func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error) {
-	row := q.db.QueryRowContext(ctx, updateCategory,
+	row := q.db.QueryRow(ctx, updateCategory,
 		arg.ID,
 		arg.Name,
 		arg.Slug,

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
@@ -12,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sqlc-dev/pqtype"
+	"github.com/jackc/pgx/v5"
 )
 
 type workExperienceRequest struct {
@@ -73,7 +72,7 @@ func (server *Server) createWorkExperience(ctx *gin.Context) {
 			EndDate:      convertToNullString(workExpRequest.EndDate),
 			IsCurrent:    convertToNullBool(workExpRequest.IsCurrent),
 			Description:  convertToNullString(workExpRequest.Description),
-			Achievements: pqtype.NullRawMessage{RawMessage: achievementsRaw, Valid: len(achievementsRaw) > 0},
+			Achievements: achievementsRaw,
 		}
 
 		newWorkExperience, executionError = queries.CreateWorkExperience(ctx, createWorkExpParam)
@@ -222,7 +221,7 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 	// Retrieve work experience
 	workExperience, err := server.store.GetWorkExperience(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Work experience not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -312,7 +311,7 @@ func (server *Server) updateWorkExperience(ctx *gin.Context) {
 			EndDate:      convertToNullString(EndDate),
 			IsCurrent:    convertToNullBool(workExpRequest.IsCurrent),
 			Description:  convertToNullString(workExpRequest.Description),
-			Achievements: pqtype.NullRawMessage{RawMessage: achievementsRaw, Valid: len(achievementsRaw) > 0},
+			Achievements: achievementsRaw,
 		}
 
 		updatedWorkExp, err = queries.UpdateWorkExperience(ctx, updateParams)
@@ -394,10 +393,10 @@ func workExperienceResponse(workExperience db.WorkExperience) workExperienceData
 		EndDate:      util.FormatDate(workExperience.EndDate, "Jan 2006"),
 		IsCurrent:    workExperience.IsCurrent.Bool,
 		Description:  workExperience.Description.String,
-		Achievements: workExperience.Achievements.RawMessage,
+		Achievements: workExperience.Achievements,
 		ColumnOrder:  workExperience.ColumnOrder,
-		CreatedAt:    workExperience.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:    workExperience.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt:    workExperience.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		UpdatedAt:    workExperience.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 
 		TechStacks: nil,
 		Tags:       nil,

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/dto"
@@ -15,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/gosimple/slug"
+	"github.com/jackc/pgx/v5"
 )
 
 type createProjectRequest struct {
@@ -100,7 +100,7 @@ func (server *Server) createProject(ctx *gin.Context) {
 			Content:   convertToNullString(projectRequest.Content),
 			Thumbnail: convertToNullString(thumbnailFileURL),
 			RepoUrl:   convertToNullString(projectRequest.RepoUrl),
-			DemoUrl:   convertToNullString(projectRequest.DemoUrl), CategoryID: sql.NullInt64{Int64: projectRequest.CategoryID, Valid: true},
+			DemoUrl:   convertToNullString(projectRequest.DemoUrl), CategoryID: convertToNullInt64(projectRequest.CategoryID),
 		}
 
 		newProject, executionError = queries.CreateProject(ctx, createProjectParams)
@@ -209,8 +209,8 @@ func (server *Server) showProjects(context *gin.Context) {
 					Slug: category.Slug,
 					// THIS FIXES THE ISSUE: Extract the String value
 					Color:     category.Color.String,
-					CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
-					UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05"),
+					CreatedAt: category.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+					UpdatedAt: category.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 				}
 			}
 		}
@@ -331,8 +331,8 @@ func (server *Server) showProject(context *gin.Context) {
 				Slug: categoryResult.Slug,
 				// THIS FIXES THE ISSUE: Extract the String value
 				Color:     categoryResult.Color.String,
-				CreatedAt: categoryResult.CreatedAt.Format("2006-01-02 15:04:05"),
-				UpdatedAt: categoryResult.UpdatedAt.Format("2006-01-02 15:04:05"),
+				CreatedAt: categoryResult.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+				UpdatedAt: categoryResult.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 			}
 		}
 	}
@@ -473,7 +473,7 @@ func (server *Server) updateProject(ctx *gin.Context) {
 			Thumbnail:  convertToNullString(thumbnailURL),
 			RepoUrl:    convertToNullString(req.RepoUrl),
 			DemoUrl:    convertToNullString(req.DemoUrl),
-			CategoryID: sql.NullInt64{Int64: req.CategoryID, Valid: true},
+			CategoryID: convertToNullInt64(req.CategoryID),
 		}
 
 		updatedProject, err = q.UpdateProject(ctx, updateArgs)
@@ -536,7 +536,7 @@ func (server *Server) deleteProject(ctx *gin.Context) {
 	// 2. Cek Apakah Project Ada? (Optional, tapi bagus buat UX biar bisa return 404)
 	_, err := server.store.GetProject(ctx, uri.ID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Project not found"))
 			return
 		}
@@ -660,8 +660,8 @@ func projectResponse(project db.Project) projectData {
 		ColumnOrder: project.ColumnOrder,
 		CategoryID:  project.CategoryID.Int64,
 		PublishedAt: project.PublishedAt.Time.Format("2006-01-02 15:04:05"),
-		CreatedAt:   project.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   project.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt:   project.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   project.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 
 		Category:   nil,
 		TechStacks: nil,
@@ -683,8 +683,8 @@ func projectsResponse(projects []db.Project) []projectData {
 			ColumnOrder: project.ColumnOrder,
 			CategoryID:  project.CategoryID.Int64,
 			PublishedAt: project.PublishedAt.Time.Format("2006-01-02 15:04:05"),
-			CreatedAt:   project.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:   project.UpdatedAt.Format("2006-01-02 15:04:05"),
+			CreatedAt:   project.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   project.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 
 			Category:   nil,
 			TechStacks: nil,

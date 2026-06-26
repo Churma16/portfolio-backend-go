@@ -1,25 +1,25 @@
 package util
 
 import (
-	"database/sql"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gosimple/slug"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// ConvertToNullString converts a string to sql.NullString
-func ConvertToNullString(input string) sql.NullString {
-	return sql.NullString{
+// ConvertToNullString converts a string to pgtype.Text
+func ConvertToNullString(input string) pgtype.Text {
+	return pgtype.Text{
 		String: input,
 		Valid:  input != "",
 	}
 }
 
-// ConvertToNullBool converts a bool to sql.NullBool
-func ConvertToNullBool(input bool) sql.NullBool {
-	return sql.NullBool{
+// ConvertToNullBool converts a bool to pgtype.Bool
+func ConvertToNullBool(input bool) pgtype.Bool {
+	return pgtype.Bool{
 		Bool:  input,
 		Valid: true,
 	}
@@ -73,7 +73,7 @@ func ParseStringToIntArray(input string) ([]int64, error) {
 	return intArray, nil
 }
 
-func FormatDate(nullString sql.NullString, layout string) string {
+func FormatDate(nullString pgtype.Text, layout string) string {
 	if !nullString.Valid {
 		return ""
 	}

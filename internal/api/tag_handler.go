@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
+	"github.com/jackc/pgx/v5"
 )
 
 type CreateTagRequest struct {
@@ -50,7 +50,7 @@ func (server *Server) createTag(ctx *gin.Context) {
 		Name:       tagRequest.Name,
 		Slug:       slug.Make(tagRequest.Name),
 		Color:      convertToNullString(tagRequest.Color),
-		CategoryID: sql.NullInt64{Int64: tagRequest.CategoryId, Valid: true},
+		CategoryID: convertToNullInt64(tagRequest.CategoryId),
 	}
 
 	// Call the service to create a new tag
@@ -104,7 +104,7 @@ func (server *Server) showTag(ctx *gin.Context) {
 
 	tagDetails, retrievalError := server.store.GetTag(ctx, tagID)
 	if retrievalError != nil {
-		if retrievalError == sql.ErrNoRows {
+		if retrievalError == pgx.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Category not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Internal server error"))
@@ -134,7 +134,7 @@ func (server *Server) updateTag(ctx *gin.Context) {
 
 	existingTag, err := server.store.GetTag(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tag not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -146,7 +146,7 @@ func (server *Server) updateTag(ctx *gin.Context) {
 		ID:         id,
 		Name:       req.Name,
 		Color:      convertToNullString(req.Color),
-		CategoryID: sql.NullInt64{Int64: req.CategoryId, Valid: true},
+		CategoryID: convertToNullInt64(req.CategoryId),
 	}
 
 	if req.Name != existingTag.Name {
@@ -159,7 +159,7 @@ func (server *Server) updateTag(ctx *gin.Context) {
 
 	tag, err := server.store.UpdateTag(ctx, arguments)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tag not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -185,7 +185,7 @@ func (server *Server) deleteTag(ctx *gin.Context) {
 
 	tag, err := server.store.DeleteTag(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tag not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -207,8 +207,8 @@ func tagResponse(tag db.Tag) TagData {
 		Slug:       tag.Slug,
 		Color:      tag.Color.String,
 		CategoryId: tag.CategoryID.Int64,
-		CreatedAt:  tag.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:  tag.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt:  tag.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		UpdatedAt:  tag.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -221,8 +221,8 @@ func tagsResponses(tags []db.Tag) []TagData {
 			Slug:       tag.Slug,
 			Color:      tag.Color.String,
 			CategoryId: tag.CategoryID.Int64,
-			CreatedAt:  tag.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:  tag.UpdatedAt.Format("2006-01-02 15:04:05"),
+			CreatedAt:  tag.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			UpdatedAt:  tag.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 		}
 	}
 	return data

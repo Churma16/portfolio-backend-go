@@ -7,11 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
-	"github.com/lib/pq"
-	"github.com/sqlc-dev/pqtype"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addTagToWorkExperience = `-- name: AddTagToWorkExperience :exec
@@ -25,7 +22,7 @@ type AddTagToWorkExperienceParams struct {
 }
 
 func (q *Queries) AddTagToWorkExperience(ctx context.Context, arg AddTagToWorkExperienceParams) error {
-	_, err := q.db.ExecContext(ctx, addTagToWorkExperience, arg.WorkExperienceID, arg.TagID)
+	_, err := q.db.Exec(ctx, addTagToWorkExperience, arg.WorkExperienceID, arg.TagID)
 	return err
 }
 
@@ -40,7 +37,7 @@ type AddTechStackToWorkExperienceParams struct {
 }
 
 func (q *Queries) AddTechStackToWorkExperience(ctx context.Context, arg AddTechStackToWorkExperienceParams) error {
-	_, err := q.db.ExecContext(ctx, addTechStackToWorkExperience, arg.WorkExperienceID, arg.TechStackID)
+	_, err := q.db.Exec(ctx, addTechStackToWorkExperience, arg.WorkExperienceID, arg.TechStackID)
 	return err
 }
 
@@ -55,7 +52,7 @@ type AttachTagToWorkExperienceParams struct {
 }
 
 func (q *Queries) AttachTagToWorkExperience(ctx context.Context, arg AttachTagToWorkExperienceParams) error {
-	_, err := q.db.ExecContext(ctx, attachTagToWorkExperience, arg.WorkExperienceID, arg.TagID)
+	_, err := q.db.Exec(ctx, attachTagToWorkExperience, arg.WorkExperienceID, arg.TagID)
 	return err
 }
 
@@ -74,7 +71,7 @@ type AttachTechStackToWorkExperienceParams struct {
 // PIVOT TABLE QUERIES
 // =============================================
 func (q *Queries) AttachTechStackToWorkExperience(ctx context.Context, arg AttachTechStackToWorkExperienceParams) error {
-	_, err := q.db.ExecContext(ctx, attachTechStackToWorkExperience, arg.WorkExperienceID, arg.TechStackID)
+	_, err := q.db.Exec(ctx, attachTechStackToWorkExperience, arg.WorkExperienceID, arg.TechStackID)
 	return err
 }
 
@@ -84,18 +81,18 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, company, position, locatio
 `
 
 type CreateWorkExperienceParams struct {
-	Company      string                `json:"company"`
-	Position     string                `json:"position"`
-	Location     sql.NullString        `json:"location"`
-	StartDate    sql.NullString        `json:"start_date"`
-	EndDate      sql.NullString        `json:"end_date"`
-	IsCurrent    sql.NullBool          `json:"is_current"`
-	Description  sql.NullString        `json:"description"`
-	Achievements pqtype.NullRawMessage `json:"achievements"`
+	Company      string      `json:"company"`
+	Position     string      `json:"position"`
+	Location     pgtype.Text `json:"location"`
+	StartDate    pgtype.Text `json:"start_date"`
+	EndDate      pgtype.Text `json:"end_date"`
+	IsCurrent    pgtype.Bool `json:"is_current"`
+	Description  pgtype.Text `json:"description"`
+	Achievements []byte      `json:"achievements"`
 }
 
 func (q *Queries) CreateWorkExperience(ctx context.Context, arg CreateWorkExperienceParams) (WorkExperience, error) {
-	row := q.db.QueryRowContext(ctx, createWorkExperience,
+	row := q.db.QueryRow(ctx, createWorkExperience,
 		arg.Company,
 		arg.Position,
 		arg.Location,
@@ -130,7 +127,7 @@ WHERE id = $1 RETURNING id, company, position, location, start_date, end_date, i
 `
 
 func (q *Queries) DeleteWorkExperience(ctx context.Context, id int64) (WorkExperience, error) {
-	row := q.db.QueryRowContext(ctx, deleteWorkExperience, id)
+	row := q.db.QueryRow(ctx, deleteWorkExperience, id)
 	var i WorkExperience
 	err := row.Scan(
 		&i.ID,
@@ -156,7 +153,7 @@ WHERE work_experience_id = $1
 `
 
 func (q *Queries) DeleteWorkExperienceTags(ctx context.Context, workExperienceID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteWorkExperienceTags, workExperienceID)
+	_, err := q.db.Exec(ctx, deleteWorkExperienceTags, workExperienceID)
 	return err
 }
 
@@ -167,7 +164,7 @@ WHERE work_experience_id = $1
 `
 
 func (q *Queries) DeleteWorkExperienceTechStacks(ctx context.Context, workExperienceID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteWorkExperienceTechStacks, workExperienceID)
+	_, err := q.db.Exec(ctx, deleteWorkExperienceTechStacks, workExperienceID)
 	return err
 }
 
@@ -179,18 +176,18 @@ WHERE work_experience_tags.work_experience_id = ANY ($1::int[])
 `
 
 type GetTagsByWorkExperienceIDRow struct {
-	WorkExperienceID int64          `json:"work_experience_id"`
-	ID               int64          `json:"id"`
-	Name             string         `json:"name"`
-	Slug             string         `json:"slug"`
-	Color            sql.NullString `json:"color"`
-	CategoryID       sql.NullInt64  `json:"category_id"`
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
+	WorkExperienceID int64              `json:"work_experience_id"`
+	ID               int64              `json:"id"`
+	Name             string             `json:"name"`
+	Slug             string             `json:"slug"`
+	Color            pgtype.Text        `json:"color"`
+	CategoryID       pgtype.Int8        `json:"category_id"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetTagsByWorkExperienceID(ctx context.Context, workExperienceIds []int32) ([]GetTagsByWorkExperienceIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTagsByWorkExperienceID, pq.Array(workExperienceIds))
+	rows, err := q.db.Query(ctx, getTagsByWorkExperienceID, workExperienceIds)
 	if err != nil {
 		return nil, err
 	}
@@ -212,9 +209,6 @@ func (q *Queries) GetTagsByWorkExperienceID(ctx context.Context, workExperienceI
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -229,18 +223,18 @@ WHERE work_experience_tech_stacks.work_experience_id = ANY ($1::int[])
 `
 
 type GetTechStacksByWorkExperienceIDRow struct {
-	WorkExperienceID int64          `json:"work_experience_id"`
-	ID               int64          `json:"id"`
-	Name             string         `json:"name"`
-	Slug             string         `json:"slug"`
-	Icon             sql.NullString `json:"icon"`
-	ColumnOrder      int32          `json:"column_order"`
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
+	WorkExperienceID int64              `json:"work_experience_id"`
+	ID               int64              `json:"id"`
+	Name             string             `json:"name"`
+	Slug             string             `json:"slug"`
+	Icon             pgtype.Text        `json:"icon"`
+	ColumnOrder      int32              `json:"column_order"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetTechStacksByWorkExperienceID(ctx context.Context, workExperienceIds []int32) ([]GetTechStacksByWorkExperienceIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTechStacksByWorkExperienceID, pq.Array(workExperienceIds))
+	rows, err := q.db.Query(ctx, getTechStacksByWorkExperienceID, workExperienceIds)
 	if err != nil {
 		return nil, err
 	}
@@ -262,9 +256,6 @@ func (q *Queries) GetTechStacksByWorkExperienceID(ctx context.Context, workExper
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -278,7 +269,7 @@ WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetWorkExperience(ctx context.Context, id int64) (WorkExperience, error) {
-	row := q.db.QueryRowContext(ctx, getWorkExperience, id)
+	row := q.db.QueryRow(ctx, getWorkExperience, id)
 	var i WorkExperience
 	err := row.Scan(
 		&i.ID,
@@ -304,7 +295,7 @@ WHERE column_order = $1 LIMIT 1
 `
 
 func (q *Queries) GetWorkExperienceByColumnOrder(ctx context.Context, columnOrder int32) (WorkExperience, error) {
-	row := q.db.QueryRowContext(ctx, getWorkExperienceByColumnOrder, columnOrder)
+	row := q.db.QueryRow(ctx, getWorkExperienceByColumnOrder, columnOrder)
 	var i WorkExperience
 	err := row.Scan(
 		&i.ID,
@@ -330,7 +321,7 @@ ORDER BY column_order ASC
 `
 
 func (q *Queries) GetWorkExperiences(ctx context.Context) ([]WorkExperience, error) {
-	rows, err := q.db.QueryContext(ctx, getWorkExperiences)
+	rows, err := q.db.Query(ctx, getWorkExperiences)
 	if err != nil {
 		return nil, err
 	}
@@ -356,9 +347,6 @@ func (q *Queries) GetWorkExperiences(ctx context.Context) ([]WorkExperience, err
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -380,19 +368,19 @@ where id = $1 RETURNING id, company, position, location, start_date, end_date, i
 `
 
 type UpdateWorkExperienceParams struct {
-	ID           int64                 `json:"id"`
-	Company      string                `json:"company"`
-	Position     string                `json:"position"`
-	Location     sql.NullString        `json:"location"`
-	StartDate    sql.NullString        `json:"start_date"`
-	EndDate      sql.NullString        `json:"end_date"`
-	IsCurrent    sql.NullBool          `json:"is_current"`
-	Description  sql.NullString        `json:"description"`
-	Achievements pqtype.NullRawMessage `json:"achievements"`
+	ID           int64       `json:"id"`
+	Company      string      `json:"company"`
+	Position     string      `json:"position"`
+	Location     pgtype.Text `json:"location"`
+	StartDate    pgtype.Text `json:"start_date"`
+	EndDate      pgtype.Text `json:"end_date"`
+	IsCurrent    pgtype.Bool `json:"is_current"`
+	Description  pgtype.Text `json:"description"`
+	Achievements []byte      `json:"achievements"`
 }
 
 func (q *Queries) UpdateWorkExperience(ctx context.Context, arg UpdateWorkExperienceParams) (WorkExperience, error) {
-	row := q.db.QueryRowContext(ctx, updateWorkExperience,
+	row := q.db.QueryRow(ctx, updateWorkExperience,
 		arg.ID,
 		arg.Company,
 		arg.Position,
@@ -434,7 +422,7 @@ type UpdateWorkExperienceColumnOrderParams struct {
 }
 
 func (q *Queries) UpdateWorkExperienceColumnOrder(ctx context.Context, arg UpdateWorkExperienceColumnOrderParams) (WorkExperience, error) {
-	row := q.db.QueryRowContext(ctx, updateWorkExperienceColumnOrder, arg.ID, arg.ColumnOrder)
+	row := q.db.QueryRow(ctx, updateWorkExperienceColumnOrder, arg.ID, arg.ColumnOrder)
 	var i WorkExperience
 	err := row.Scan(
 		&i.ID,

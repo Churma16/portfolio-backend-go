@@ -1,14 +1,14 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/api"
 	"log"
 	"os"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -35,15 +35,15 @@ func main() {
 		Password: "",               // Kosongkan jika tidak ada password
 		DB:       0,                // Default DB
 	})
-	dbDriver := os.Getenv("DB_DRIVER")
 	dbSource := os.Getenv("DB_SOURCE")
 	serverAddress := os.Getenv("SERVER_ADDRESS")
 
 	// 2. Konek Database
-	conn, err := sql.Open(dbDriver, dbSource)
+	conn, err := pgxpool.New(context.Background(), dbSource)
 	if err != nil {
 		log.Fatal("cannot connect to db:", err)
 	}
+	defer conn.Close()
 
 	// 3. Init Store & Server
 	//store := db.New(conn)

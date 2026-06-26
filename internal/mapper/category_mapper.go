@@ -12,8 +12,8 @@ func MapCategoryToData(category db.Category) dto.CategoryData {
 		Name:      category.Name,
 		Slug:      category.Slug,
 		Color:     category.Color.String,
-		CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt: category.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		UpdatedAt: category.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
 	}
 }
 
