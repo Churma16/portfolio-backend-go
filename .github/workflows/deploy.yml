@@ -34,7 +34,7 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           # Salin file-file yang diperlukan untuk build Docker di VPS
-          source: "main.go,go.mod,go.sum,Dockerfile,docker-compose.yaml,app.env,db/**,internal/**"
+          source: "main.go,go.mod,go.sum,Dockerfile,docker-compose.yaml,app.env,db/**,internal/**,scripts/**"
           target: "/var/www/go-portfolio-api"
           strip_components: 0
 
