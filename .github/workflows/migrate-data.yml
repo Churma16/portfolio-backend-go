@@ -1,0 +1,49 @@
+name: Migrate Laravel to Go Data
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+
+      - name: Build Migration Script
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: amd64
+        run: go build -o migrate-data scripts/migrate_data.go
+
+      - name: Deploy Script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "migrate-data"
+          target: "/var/www/go-portfolio-api"
+          strip_components: 0
+
+      - name: Execute Migration in Docker
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /var/www/go-portfolio-api
+            chmod +x migrate-data
+            
+            # Menjalankan script menggunakan container api secara temporary
+            # Dan membaca file app.env yang sudah ada di VPS produksi, serta file .env Laravel
+            docker compose run --rm -T --env-file app.env --env-file /root/my-app/.env \
+              -v ./migrate-data:/migrate-data \
+              api /migrate-data
