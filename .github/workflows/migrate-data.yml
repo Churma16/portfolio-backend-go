@@ -52,6 +52,9 @@ jobs:
             source /root/my-app/.env
             set +a
             
+            # Timpa DB_HOST dari Laravel .env dengan IP internal container MySQL agar bisa diakses antar network Docker
+            export DB_HOST=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' churma-db)
+            
             # Menjalankan script menggunakan container api secara temporary
             # Pass variable ke container menggunakan flag -e (tanpa value agar otomatis mengambil dari host environment)
             docker compose run --rm -T \
