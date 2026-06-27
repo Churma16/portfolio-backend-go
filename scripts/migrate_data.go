@@ -146,10 +146,39 @@ func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
 			// Convert []byte to string for Postgres compatibility (driver quirks)
 			val := columns[i]
 			if b, ok := val.([]byte); ok {
-				validValues = append(validValues, string(b))
-			} else {
-				validValues = append(validValues, val)
+				val = string(b)
 			}
+
+			// Validate Foreign Keys to prevent "violates foreign key constraint" error
+			if val != nil && strings.HasSuffix(colName, "_id") {
+				refTable := ""
+				switch colName {
+				case "category_id":
+					refTable = "categories"
+				case "tech_stack_id":
+					refTable = "tech_stacks"
+				case "project_id":
+					refTable = "projects"
+				case "work_experience_id":
+					refTable = "work_experiences"
+				case "tag_id":
+					refTable = "tags"
+				case "user_id":
+					refTable = "users"
+				}
+
+				if refTable != "" {
+					var exists int
+					errCheck := pgDB.QueryRow(fmt.Sprintf("SELECT 1 FROM %s WHERE id = $1", refTable), val).Scan(&exists)
+					if errCheck != nil {
+						// Record does not exist in the referenced table, set to NULL to prevent crash
+						log.Printf("Warning: Invalid %s=%v in table %s. Setting to NULL.", colName, val, pgTable)
+						val = nil
+					}
+				}
+			}
+
+			validValues = append(validValues, val)
 		}
 
 		// Generate $1, $2, $3 placeholders
