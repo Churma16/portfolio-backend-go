@@ -98,16 +98,16 @@ func main() {
 }
 
 func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
-	// Get PostgreSQL columns to avoid inserting columns that don't exist
-	pgCols := make(map[string]bool)
-	pgColsRows, err := pgDB.Query(fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name='%s'", pgTable))
+	// Get PostgreSQL columns and their types to handle data type conversions
+	pgCols := make(map[string]string)
+	pgColsRows, err := pgDB.Query(fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name='%s'", pgTable))
 	if err != nil {
 		return fmt.Errorf("failed to get pg columns: %w", err)
 	}
 	for pgColsRows.Next() {
-		var colName string
-		if err := pgColsRows.Scan(&colName); err == nil {
-			pgCols[colName] = true
+		var colName, dataType string
+		if err := pgColsRows.Scan(&colName, &dataType); err == nil {
+			pgCols[colName] = dataType
 		}
 	}
 	pgColsRows.Close()
@@ -137,15 +137,38 @@ func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
 
 		var validCols []string
 		var validValues []interface{}
+		skipRow := false
+
 		for i, colName := range cols {
-			if !pgCols[colName] {
+			dataType, exists := pgCols[colName]
+			if !exists {
 				continue // Skip column if it doesn't exist in Postgres
 			}
 			
-			// Convert []byte to string for Postgres compatibility (driver quirks)
 			val := columns[i]
-			if b, ok := val.([]byte); ok {
-				val = string(b)
+			if val == nil {
+				continue
+			}
+
+			// Handle boolean conversions because MySQL TINYINT(1) doesn't auto-cast to Postgres BOOLEAN
+			if dataType == "boolean" {
+				switch v := val.(type) {
+				case []byte:
+					val = (string(v) == "1" || string(v) == "true" || string(v) == "t")
+				case string:
+					val = (v == "1" || v == "true" || v == "t")
+				case int64:
+					val = (v == 1)
+				case int32:
+					val = (v == 1)
+				case int:
+					val = (v == 1)
+				}
+			} else {
+				// Convert []byte to string for Postgres compatibility
+				if b, ok := val.([]byte); ok {
+					val = string(b)
+				}
 			}
 
 			// Validate Foreign Keys to prevent "violates foreign key constraint" error
@@ -170,9 +193,17 @@ func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
 					var exists int
 					errCheck := pgDB.QueryRow(fmt.Sprintf("SELECT 1 FROM %s WHERE id = $1", refTable), val).Scan(&exists)
 					if errCheck != nil {
-						// Record does not exist in the referenced table, set to NULL to prevent crash
-						log.Printf("Warning: Invalid %s=%v in table %s. Setting to NULL.", colName, val, pgTable)
-						val = nil
+						// Record does not exist in the referenced table.
+						isPivot := pgTable == "project_tech_stacks" || pgTable == "project_tags" || pgTable == "work_experience_tech_stacks" || pgTable == "work_experience_tags"
+						if isPivot {
+							log.Printf("Warning: Invalid %s=%v in pivot table %s. Skipping entire row.", colName, val, pgTable)
+							skipRow = true
+							break
+						} else {
+							// For normal tables like tech_stacks, just set the relation to NULL
+							log.Printf("Warning: Invalid %s=%v in table %s. Setting to NULL.", colName, val, pgTable)
+							val = nil
+						}
 					}
 				}
 			}
@@ -185,6 +216,10 @@ func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
 
 			validCols = append(validCols, colName)
 			validValues = append(validValues, val)
+		}
+
+		if skipRow {
+			continue
 		}
 
 		// Generate $1, $2, $3 placeholders
