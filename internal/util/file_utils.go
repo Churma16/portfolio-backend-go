@@ -46,5 +46,9 @@ func SaveUploadedFile(context *gin.Context, uploadedFile *multipart.FileHeader, 
 
 // DeleteFile removes a file from the filesystem.
 func DeleteFile(filePath string) error {
-	return os.Remove("./storage/" + filePath)
+	err := os.Remove("./storage/" + filePath)
+	if err != nil && os.IsNotExist(err) {
+		return nil // Ignore error if file doesn't exist
+	}
+	return err
 }
