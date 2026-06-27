@@ -41,7 +41,7 @@ services:
     restart: always
     networks:
       - portfolio_network
-      - porto-express-api_default
+      - my-app_churma-net
 
   # 2. Database Postgres
   postgres:
@@ -70,5 +70,5 @@ volumes:
 
 networks:
   portfolio_network:
-  porto-express-api_default:
+  my-app_churma-net:
     external: true
