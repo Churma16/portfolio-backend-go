@@ -41,6 +41,7 @@ services:
     restart: always
     networks:
       - portfolio_network
+      - porto-express-api_default
 
   # 2. Database Postgres
   postgres:
@@ -69,3 +70,5 @@ volumes:
 
 networks:
   portfolio_network:
+  porto-express-api_default:
+    external: true
