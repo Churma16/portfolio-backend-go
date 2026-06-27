@@ -43,6 +43,10 @@ jobs:
             chmod +x migrate-data
             
             # Export environment variables from files to the host shell
+            # Hapus karakter \r (carriage return) jika file .env menggunakan format Windows CRLF
+            sed -i 's/\r$//' app.env
+            sed -i 's/\r$//' /root/my-app/.env
+            
             set -a
             source app.env
             source /root/my-app/.env
