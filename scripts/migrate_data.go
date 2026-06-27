@@ -141,7 +141,6 @@ func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
 			if !pgCols[colName] {
 				continue // Skip column if it doesn't exist in Postgres
 			}
-			validCols = append(validCols, colName)
 			
 			// Convert []byte to string for Postgres compatibility (driver quirks)
 			val := columns[i]
@@ -178,6 +177,13 @@ func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
 				}
 			}
 
+			// Jika nil (NULL di MySQL atau karena foreign key tidak valid),
+			// kita lewati saja agar Postgres bisa menggunakan DEFAULT-nya (misal: now() untuk created_at, atau default NULL)
+			if val == nil {
+				continue
+			}
+
+			validCols = append(validCols, colName)
 			validValues = append(validValues, val)
 		}
 
