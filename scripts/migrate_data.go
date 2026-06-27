@@ -18,11 +18,20 @@ func main() {
 		user := os.Getenv("DB_USERNAME")
 		pass := os.Getenv("DB_PASSWORD")
 		dbName := os.Getenv("DB_DATABASE")
+		dbHost := os.Getenv("DB_HOST")
+		if dbHost == "" {
+			dbHost = "host.docker.internal"
+		}
+		dbPort := os.Getenv("DB_PORT")
+		if dbPort == "" {
+			dbPort = "3306"
+		}
+
 		if user != "" && dbName != "" {
 			if pass != "" {
-				mysqlDSN = fmt.Sprintf("%s:%s@tcp(host.docker.internal:3306)/%s", user, pass, dbName)
+				mysqlDSN = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&timeout=5s", user, pass, dbHost, dbPort, dbName)
 			} else {
-				mysqlDSN = fmt.Sprintf("%s@tcp(host.docker.internal:3306)/%s", user, dbName)
+				mysqlDSN = fmt.Sprintf("%s@tcp(%s:%s)/%s?parseTime=true&timeout=5s", user, dbHost, dbPort, dbName)
 			}
 		} else {
 			log.Fatal("MYSQL_DSN (atau DB_USERNAME & DB_DATABASE dari file .env Laravel) is required in env")
