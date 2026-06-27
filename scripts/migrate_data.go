@@ -98,6 +98,20 @@ func main() {
 }
 
 func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
+	// Get PostgreSQL columns to avoid inserting columns that don't exist
+	pgCols := make(map[string]bool)
+	pgColsRows, err := pgDB.Query(fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name='%s'", pgTable))
+	if err != nil {
+		return fmt.Errorf("failed to get pg columns: %w", err)
+	}
+	for pgColsRows.Next() {
+		var colName string
+		if err := pgColsRows.Scan(&colName); err == nil {
+			pgCols[colName] = true
+		}
+	}
+	pgColsRows.Close()
+
 	log.Printf("Migrating %s -> %s...", mysqlTable, pgTable)
 	rows, err := mysqlDB.Query(fmt.Sprintf("SELECT * FROM %s", mysqlTable))
 	if err != nil {
@@ -121,21 +135,31 @@ func migrateTable(mysqlDB, pgDB *sql.DB, mysqlTable, pgTable string) error {
 			return err
 		}
 
-		// Convert []byte to string for Postgres compatibility (driver quirks)
-		for i, col := range columns {
-			if b, ok := col.([]byte); ok {
-				columns[i] = string(b)
+		var validCols []string
+		var validValues []interface{}
+		for i, colName := range cols {
+			if !pgCols[colName] {
+				continue // Skip column if it doesn't exist in Postgres
+			}
+			validCols = append(validCols, colName)
+			
+			// Convert []byte to string for Postgres compatibility (driver quirks)
+			val := columns[i]
+			if b, ok := val.([]byte); ok {
+				validValues = append(validValues, string(b))
+			} else {
+				validValues = append(validValues, val)
 			}
 		}
 
 		// Generate $1, $2, $3 placeholders
-		placeholders := make([]string, len(cols))
+		placeholders := make([]string, len(validCols))
 		for i := range placeholders {
 			placeholders[i] = fmt.Sprintf("$%d", i+1)
 		}
 
-		query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", pgTable, strings.Join(cols, ", "), strings.Join(placeholders, ", "))
-		_, err := pgDB.Exec(query, columns...)
+		query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", pgTable, strings.Join(validCols, ", "), strings.Join(placeholders, ", "))
+		_, err := pgDB.Exec(query, validValues...)
 		if err != nil {
 			return fmt.Errorf("insert failed: %w (query: %s)", err, query)
 		}
