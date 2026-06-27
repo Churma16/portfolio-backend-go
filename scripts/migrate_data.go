@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -45,7 +45,7 @@ func main() {
 	defer mysqlDB.Close()
 
 	log.Println("Connecting to PostgreSQL...")
-	pgDB, err := sql.Open("postgres", pgDSN)
+	pgDB, err := sql.Open("pgx", pgDSN)
 	if err != nil {
 		log.Fatal(err)
 	}
