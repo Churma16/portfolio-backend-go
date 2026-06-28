@@ -5,3 +5,5 @@ docs
 .idea
 *.exe
 .idea/sqldialects.xml
+migrate-data
+/tmp
