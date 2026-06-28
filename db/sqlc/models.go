@@ -82,13 +82,23 @@ type Tag struct {
 }
 
 type TechStack struct {
-	ID          int64              `json:"id"`
-	Name        string             `json:"name"`
-	Slug        string             `json:"slug"`
-	Icon        pgtype.Text        `json:"icon"`
-	ColumnOrder int32              `json:"column_order"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ID                  int64              `json:"id"`
+	Name                string             `json:"name"`
+	Slug                string             `json:"slug"`
+	Icon                pgtype.Text        `json:"icon"`
+	ColumnOrder         int32              `json:"column_order"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	TechStackCategoryID pgtype.Int8        `json:"tech_stack_category_id"`
+}
+
+type TechStackCategory struct {
+	ID        int64              `json:"id"`
+	Name      string             `json:"name"`
+	Slug      string             `json:"slug"`
+	Color     pgtype.Text        `json:"color"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {

@@ -15,25 +15,28 @@ import (
 )
 
 type CreateTechStackRequest struct {
-	Name string `form:"name" binding:"required"`
-	Slug string `form:"slug"`
-	Icon string `form:"icon"`
+	Name                string `form:"name" json:"name" binding:"required"`
+	Slug                string `form:"slug" json:"slug"`
+	Icon                string `form:"icon" json:"icon"`
+	TechStackCategoryID int64  `form:"tech_stack_category_id" json:"tech_stack_category_id"`
 }
 
 type updateTechStackRequest struct {
-	Name string `form:"name" binding:"required"`
-	Slug string `form:"slug"`
-	Icon string `form:"icon"`
+	Name                string `form:"name" json:"name" binding:"required"`
+	Slug                string `form:"slug" json:"slug"`
+	Icon                string `form:"icon" json:"icon"`
+	TechStackCategoryID int64  `form:"tech_stack_category_id" json:"tech_stack_category_id"`
 }
 
 type TechStackData struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Icon        string `json:"icon"`
-	ColumnOrder int32  `json:"column_order"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID                  int64  `json:"id"`
+	Name                string `json:"name"`
+	Slug                string `json:"slug"`
+	Icon                string `json:"icon"`
+	ColumnOrder         int32  `json:"column_order"`
+	CreatedAt           string `json:"created_at"`
+	UpdatedAt           string `json:"updated_at"`
+	TechStackCategoryID *int64 `json:"tech_stack_category_id"`
 }
 
 func (server *Server) createTechStack(ctx *gin.Context) {
@@ -46,9 +49,10 @@ func (server *Server) createTechStack(ctx *gin.Context) {
 
 	// Prepare the parameters for creating a new tech stack
 	createTechStackParams := db.CreateTechStackParams{
-		Name: techStackRequest.Name,
-		Slug: slug.Make(techStackRequest.Name),
-		Icon: convertToNullString(techStackRequest.Icon),
+		Name:                techStackRequest.Name,
+		Slug:                slug.Make(techStackRequest.Name),
+		Icon:                convertToNullString(techStackRequest.Icon),
+		TechStackCategoryID: convertToNullInt64(techStackRequest.TechStackCategoryID),
 	}
 
 	// Call the service to create a new tech stack
@@ -139,9 +143,10 @@ func (server *Server) updateTechStack(ctx *gin.Context) {
 	}
 
 	arguments := db.UpdateTechStackParams{
-		ID:   id,
-		Name: req.Name,
-		Icon: convertToNullString(req.Icon),
+		ID:                  id,
+		Name:                req.Name,
+		Icon:                convertToNullString(req.Icon),
+		TechStackCategoryID: convertToNullInt64(req.TechStackCategoryID),
 	}
 
 	if req.Name != existingTechStack.Name {
@@ -271,28 +276,42 @@ func (server *Server) reorderTechStack(ctx *gin.Context) {
 }
 
 func techStackResponse(techStack db.TechStack) TechStackData {
+	var catID *int64
+	if techStack.TechStackCategoryID.Valid {
+		v := techStack.TechStackCategoryID.Int64
+		catID = &v
+	}
+
 	return TechStackData{
-		ID:          techStack.ID,
-		Name:        techStack.Name,
-		Slug:        techStack.Slug,
-		Icon:        techStack.Icon.String,
-		ColumnOrder: techStack.ColumnOrder,
-		CreatedAt:   techStack.CreatedAt.Time.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   techStack.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
+		ID:                  techStack.ID,
+		Name:                techStack.Name,
+		Slug:                techStack.Slug,
+		Icon:                techStack.Icon.String,
+		ColumnOrder:         techStack.ColumnOrder,
+		CreatedAt:           techStack.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		UpdatedAt:           techStack.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
+		TechStackCategoryID: catID,
 	}
 }
 
 func TechStacksResponse(techStacks []db.TechStack) []TechStackData {
 	data := make([]TechStackData, len(techStacks))
 	for i, techStack := range techStacks {
+		var catID *int64
+		if techStack.TechStackCategoryID.Valid {
+			v := techStack.TechStackCategoryID.Int64
+			catID = &v
+		}
+
 		data[i] = TechStackData{
-			ID:          techStack.ID,
-			Name:        techStack.Name,
-			Slug:        techStack.Slug,
-			Icon:        techStack.Icon.String,
-			ColumnOrder: techStack.ColumnOrder,
-			CreatedAt:   techStack.CreatedAt.Time.Format("2006-01-02 15:04:05"),
-			UpdatedAt:   techStack.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
+			ID:                  techStack.ID,
+			Name:                techStack.Name,
+			Slug:                techStack.Slug,
+			Icon:                techStack.Icon.String,
+			ColumnOrder:         techStack.ColumnOrder,
+			CreatedAt:           techStack.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			UpdatedAt:           techStack.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
+			TechStackCategoryID: catID,
 		}
 	}
 	return data

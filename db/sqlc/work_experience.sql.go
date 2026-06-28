@@ -216,21 +216,22 @@ func (q *Queries) GetTagsByWorkExperienceID(ctx context.Context, workExperienceI
 }
 
 const getTechStacksByWorkExperienceID = `-- name: GetTechStacksByWorkExperienceID :many
-SELECT work_experience_tech_stacks.work_experience_id, tech_stacks.id, tech_stacks.name, tech_stacks.slug, tech_stacks.icon, tech_stacks.column_order, tech_stacks.created_at, tech_stacks.updated_at
+SELECT work_experience_tech_stacks.work_experience_id, tech_stacks.id, tech_stacks.name, tech_stacks.slug, tech_stacks.icon, tech_stacks.column_order, tech_stacks.created_at, tech_stacks.updated_at, tech_stacks.tech_stack_category_id
 FROM tech_stacks
          JOIN work_experience_tech_stacks ON tech_stacks.id = work_experience_tech_stacks.tech_stack_id
 WHERE work_experience_tech_stacks.work_experience_id = ANY ($1::int[])
 `
 
 type GetTechStacksByWorkExperienceIDRow struct {
-	WorkExperienceID int64              `json:"work_experience_id"`
-	ID               int64              `json:"id"`
-	Name             string             `json:"name"`
-	Slug             string             `json:"slug"`
-	Icon             pgtype.Text        `json:"icon"`
-	ColumnOrder      int32              `json:"column_order"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	WorkExperienceID    int64              `json:"work_experience_id"`
+	ID                  int64              `json:"id"`
+	Name                string             `json:"name"`
+	Slug                string             `json:"slug"`
+	Icon                pgtype.Text        `json:"icon"`
+	ColumnOrder         int32              `json:"column_order"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	TechStackCategoryID pgtype.Int8        `json:"tech_stack_category_id"`
 }
 
 func (q *Queries) GetTechStacksByWorkExperienceID(ctx context.Context, workExperienceIds []int32) ([]GetTechStacksByWorkExperienceIDRow, error) {
@@ -251,6 +252,7 @@ func (q *Queries) GetTechStacksByWorkExperienceID(ctx context.Context, workExper
 			&i.ColumnOrder,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TechStackCategoryID,
 		); err != nil {
 			return nil, err
 		}

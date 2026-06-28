@@ -12,18 +12,24 @@ import (
 )
 
 const createTechStack = `-- name: CreateTechStack :one
-Insert into tech_stacks (name, slug, icon)
-values ($1, $2, $3) returning id, name, slug, icon, column_order, created_at, updated_at
+Insert into tech_stacks (name, slug, icon, tech_stack_category_id)
+values ($1, $2, $3, $4) returning id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
 `
 
 type CreateTechStackParams struct {
-	Name string      `json:"name"`
-	Slug string      `json:"slug"`
-	Icon pgtype.Text `json:"icon"`
+	Name                string      `json:"name"`
+	Slug                string      `json:"slug"`
+	Icon                pgtype.Text `json:"icon"`
+	TechStackCategoryID pgtype.Int8 `json:"tech_stack_category_id"`
 }
 
 func (q *Queries) CreateTechStack(ctx context.Context, arg CreateTechStackParams) (TechStack, error) {
-	row := q.db.QueryRow(ctx, createTechStack, arg.Name, arg.Slug, arg.Icon)
+	row := q.db.QueryRow(ctx, createTechStack,
+		arg.Name,
+		arg.Slug,
+		arg.Icon,
+		arg.TechStackCategoryID,
+	)
 	var i TechStack
 	err := row.Scan(
 		&i.ID,
@@ -33,6 +39,7 @@ func (q *Queries) CreateTechStack(ctx context.Context, arg CreateTechStackParams
 		&i.ColumnOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TechStackCategoryID,
 	)
 	return i, err
 }
@@ -40,7 +47,7 @@ func (q *Queries) CreateTechStack(ctx context.Context, arg CreateTechStackParams
 const deleteTechStack = `-- name: DeleteTechStack :one
 delete
 from tech_stacks
-where id = $1 returning id, name, slug, icon, column_order, created_at, updated_at
+where id = $1 returning id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
 `
 
 func (q *Queries) DeleteTechStack(ctx context.Context, id int64) (TechStack, error) {
@@ -54,12 +61,13 @@ func (q *Queries) DeleteTechStack(ctx context.Context, id int64) (TechStack, err
 		&i.ColumnOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TechStackCategoryID,
 	)
 	return i, err
 }
 
 const getTechStack = `-- name: GetTechStack :one
-select id, name, slug, icon, column_order, created_at, updated_at
+select id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
 from tech_stacks
 where id = $1 limit 1
 `
@@ -75,12 +83,13 @@ func (q *Queries) GetTechStack(ctx context.Context, id int64) (TechStack, error)
 		&i.ColumnOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TechStackCategoryID,
 	)
 	return i, err
 }
 
 const getTechStackByColumnOrder = `-- name: GetTechStackByColumnOrder :one
-SELECT id, name, slug, icon, column_order, created_at, updated_at
+SELECT id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
 FROM tech_stacks
 WHERE column_order = $1
 LIMIT 1
@@ -97,12 +106,13 @@ func (q *Queries) GetTechStackByColumnOrder(ctx context.Context, columnOrder int
 		&i.ColumnOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TechStackCategoryID,
 	)
 	return i, err
 }
 
 const getTechStacks = `-- name: GetTechStacks :many
-select id, name, slug, icon, column_order, created_at, updated_at
+select id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
 from tech_stacks
 order by column_order
 `
@@ -124,6 +134,7 @@ func (q *Queries) GetTechStacks(ctx context.Context) ([]TechStack, error) {
 			&i.ColumnOrder,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TechStackCategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -137,18 +148,20 @@ func (q *Queries) GetTechStacks(ctx context.Context) ([]TechStack, error) {
 
 const updateTechStack = `-- name: UpdateTechStack :one
 update tech_stacks
-set name       = $2,
-    slug       = $3,
-    icon       = $4,
-    updated_at = now()
-where id = $1 returning id, name, slug, icon, column_order, created_at, updated_at
+set name                   = $2,
+    slug                   = $3,
+    icon                   = $4,
+    tech_stack_category_id = $5,
+    updated_at             = now()
+where id = $1 returning id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
 `
 
 type UpdateTechStackParams struct {
-	ID   int64       `json:"id"`
-	Name string      `json:"name"`
-	Slug string      `json:"slug"`
-	Icon pgtype.Text `json:"icon"`
+	ID                  int64       `json:"id"`
+	Name                string      `json:"name"`
+	Slug                string      `json:"slug"`
+	Icon                pgtype.Text `json:"icon"`
+	TechStackCategoryID pgtype.Int8 `json:"tech_stack_category_id"`
 }
 
 func (q *Queries) UpdateTechStack(ctx context.Context, arg UpdateTechStackParams) (TechStack, error) {
@@ -157,6 +170,7 @@ func (q *Queries) UpdateTechStack(ctx context.Context, arg UpdateTechStackParams
 		arg.Name,
 		arg.Slug,
 		arg.Icon,
+		arg.TechStackCategoryID,
 	)
 	var i TechStack
 	err := row.Scan(
@@ -167,6 +181,7 @@ func (q *Queries) UpdateTechStack(ctx context.Context, arg UpdateTechStackParams
 		&i.ColumnOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TechStackCategoryID,
 	)
 	return i, err
 }
@@ -175,7 +190,7 @@ const updateTechStackColumnOrder = `-- name: UpdateTechStackColumnOrder :one
 update tech_stacks
 set column_order = $2,
     updated_at   = now()
-where id = $1 returning id, name, slug, icon, column_order, created_at, updated_at
+where id = $1 returning id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
 `
 
 type UpdateTechStackColumnOrderParams struct {
@@ -194,6 +209,7 @@ func (q *Queries) UpdateTechStackColumnOrder(ctx context.Context, arg UpdateTech
 		&i.ColumnOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TechStackCategoryID,
 	)
 	return i, err
 }

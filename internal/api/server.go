@@ -89,6 +89,13 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Ser
 	authRoutes.DELETE("/tech-stacks/:id", server.deleteTechStack)
 	authRoutes.POST("/tech-stacks/:id/reorder", server.reorderTechStack)
 
+	// Rute Tech Stack Category
+	authRoutes.POST("/tech-stack-categories", server.createTechStackCategory)
+	apiRoutes.GET("/tech-stack-categories", server.showTechStackCategories)
+	apiRoutes.GET("/tech-stack-categories/:id", server.showTechStackCategory)
+	authRoutes.PUT("/tech-stack-categories/:id", server.updateTechStackCategory)
+	authRoutes.DELETE("/tech-stack-categories/:id", server.deleteTechStackCategory)
+
 	// Rute Project
 	authRoutes.POST("/projects", server.createProject)
 	apiRoutes.GET("/projects", server.showProjects)

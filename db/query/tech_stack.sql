@@ -1,6 +1,6 @@
 -- name: CreateTechStack :one
-Insert into tech_stacks (name, slug, icon)
-values ($1, $2, $3) returning *;
+Insert into tech_stacks (name, slug, icon, tech_stack_category_id)
+values ($1, $2, $3, $4) returning *;
 
 -- name: GetTechStacks :many
 select *
@@ -14,10 +14,11 @@ where id = $1 limit 1;
 
 -- name: UpdateTechStack :one
 update tech_stacks
-set name       = $2,
-    slug       = $3,
-    icon       = $4,
-    updated_at = now()
+set name                   = $2,
+    slug                   = $3,
+    icon                   = $4,
+    tech_stack_category_id = $5,
+    updated_at             = now()
 where id = $1 returning *;
 
 -- name: UpdateTechStackColumnOrder :one
@@ -36,3 +37,4 @@ LIMIT 1;
 delete
 from tech_stacks
 where id = $1 returning *;
+

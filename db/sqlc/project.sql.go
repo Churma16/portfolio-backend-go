@@ -347,21 +347,22 @@ func (q *Queries) GetTagsByProjectID(ctx context.Context, projectIds []int32) ([
 }
 
 const getTechStacksByProjectID = `-- name: GetTechStacksByProjectID :many
-SELECT project_tech_stacks.project_id, tech_stacks.id, tech_stacks.name, tech_stacks.slug, tech_stacks.icon, tech_stacks.column_order, tech_stacks.created_at, tech_stacks.updated_at
+SELECT project_tech_stacks.project_id, tech_stacks.id, tech_stacks.name, tech_stacks.slug, tech_stacks.icon, tech_stacks.column_order, tech_stacks.created_at, tech_stacks.updated_at, tech_stacks.tech_stack_category_id
 FROM tech_stacks
          JOIN project_tech_stacks ON tech_stacks.id = project_tech_stacks.tech_stack_id
 WHERE project_tech_stacks.project_id = ANY ($1::int[])
 `
 
 type GetTechStacksByProjectIDRow struct {
-	ProjectID   int64              `json:"project_id"`
-	ID          int64              `json:"id"`
-	Name        string             `json:"name"`
-	Slug        string             `json:"slug"`
-	Icon        pgtype.Text        `json:"icon"`
-	ColumnOrder int32              `json:"column_order"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ProjectID           int64              `json:"project_id"`
+	ID                  int64              `json:"id"`
+	Name                string             `json:"name"`
+	Slug                string             `json:"slug"`
+	Icon                pgtype.Text        `json:"icon"`
+	ColumnOrder         int32              `json:"column_order"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	TechStackCategoryID pgtype.Int8        `json:"tech_stack_category_id"`
 }
 
 func (q *Queries) GetTechStacksByProjectID(ctx context.Context, projectIds []int32) ([]GetTechStacksByProjectIDRow, error) {
@@ -382,6 +383,7 @@ func (q *Queries) GetTechStacksByProjectID(ctx context.Context, projectIds []int
 			&i.ColumnOrder,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TechStackCategoryID,
 		); err != nil {
 			return nil, err
 		}
