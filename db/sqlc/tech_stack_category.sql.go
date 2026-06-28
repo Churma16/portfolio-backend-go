@@ -12,8 +12,8 @@ import (
 )
 
 const createTechStackCategory = `-- name: CreateTechStackCategory :one
-INSERT INTO tech_stack_categories (name, slug, color)
-VALUES ($1, $2, $3) RETURNING id, name, slug, color, created_at, updated_at
+INSERT INTO tech_stack_categories (name, slug, color, created_at, updated_at)
+VALUES ($1, $2, $3, now(), now()) RETURNING id, name, slug, color, created_at, updated_at
 `
 
 type CreateTechStackCategoryParams struct {

@@ -1,6 +1,6 @@
 -- name: CreateTechStackCategory :one
-INSERT INTO tech_stack_categories (name, slug, color)
-VALUES ($1, $2, $3) RETURNING *;
+INSERT INTO tech_stack_categories (name, slug, color, created_at, updated_at)
+VALUES ($1, $2, $3, now(), now()) RETURNING *;
 
 -- name: GetTechStackCategories :many
 SELECT * FROM tech_stack_categories
