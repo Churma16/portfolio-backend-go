@@ -74,7 +74,8 @@ WHERE work_experience_id = $1;
 SELECT work_experience_tech_stacks.work_experience_id, tech_stacks.*
 FROM tech_stacks
          JOIN work_experience_tech_stacks ON tech_stacks.id = work_experience_tech_stacks.tech_stack_id
-WHERE work_experience_tech_stacks.work_experience_id = ANY (@work_experience_ids::int[]);
+WHERE work_experience_tech_stacks.work_experience_id = ANY (@work_experience_ids::int[])
+ORDER BY tech_stacks.column_order ASC;
 
 -- name: GetTagsByWorkExperienceID :many
 SELECT work_experience_tags.work_experience_id, tags.*

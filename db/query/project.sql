@@ -75,7 +75,8 @@ WHERE project_id = $1;
 SELECT project_tech_stacks.project_id, tech_stacks.*
 FROM tech_stacks
          JOIN project_tech_stacks ON tech_stacks.id = project_tech_stacks.tech_stack_id
-WHERE project_tech_stacks.project_id = ANY (@project_ids::int[]);
+WHERE project_tech_stacks.project_id = ANY (@project_ids::int[])
+ORDER BY tech_stacks.column_order ASC;
 
 
 

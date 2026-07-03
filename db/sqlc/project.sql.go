@@ -351,6 +351,7 @@ SELECT project_tech_stacks.project_id, tech_stacks.id, tech_stacks.name, tech_st
 FROM tech_stacks
          JOIN project_tech_stacks ON tech_stacks.id = project_tech_stacks.tech_stack_id
 WHERE project_tech_stacks.project_id = ANY ($1::int[])
+ORDER BY tech_stacks.column_order ASC
 `
 
 type GetTechStacksByProjectIDRow struct {

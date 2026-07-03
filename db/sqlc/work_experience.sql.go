@@ -220,6 +220,7 @@ SELECT work_experience_tech_stacks.work_experience_id, tech_stacks.id, tech_stac
 FROM tech_stacks
          JOIN work_experience_tech_stacks ON tech_stacks.id = work_experience_tech_stacks.tech_stack_id
 WHERE work_experience_tech_stacks.work_experience_id = ANY ($1::int[])
+ORDER BY tech_stacks.column_order ASC
 `
 
 type GetTechStacksByWorkExperienceIDRow struct {
