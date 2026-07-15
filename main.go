@@ -24,17 +24,18 @@ func main() {
 		log.Fatal("TOKEN_SYMMETRIC_KEY must be 32 characters")
 	}
 
-
 	redisAddr := os.Getenv("REDIS_ADDRESS")
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddr, // Menggunakan alamat Redis dari env atau fallback ke localhost
-		Password: "",               // Kosongkan jika tidak ada password
-		DB:       0,                // Default DB
-	})
+	redisClient := redis.NewClient(
+		&redis.Options{
+			Addr:     redisAddr,
+			Password: "",
+			DB:       0,
+		},
+	)
 	dbSource := os.Getenv("DB_SOURCE")
 	serverAddress := os.Getenv("SERVER_ADDRESS")
 
