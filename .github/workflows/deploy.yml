@@ -6,6 +6,7 @@ on:
       - master
     paths-ignore:
       - 'README.md'
+      - 'LICENSE'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
