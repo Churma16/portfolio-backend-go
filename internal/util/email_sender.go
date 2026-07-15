@@ -42,7 +42,7 @@ func SendContactEmail(req EmailRequest) error {
 	params := &resend.SendEmailRequest{
 		From:    fmt.Sprintf("Portfolio Contact <%s>", fromEmail),
 		To:      []string{targetEmail},
-		Subject: fmt.Sprintf("👋 Pesan Baru: %s", req.SenderName),
+		Subject: fmt.Sprintf("[Pesan Baru]: %s", req.SenderName),
 
 		// 4. Gunakan hasil render template sebagai HTML string
 		Html: body.String(),
