@@ -2,11 +2,8 @@ name: Deploy Backend
 
 on:
   push:
-    branches:
-      - master
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
+    tags:
+      - 'v*'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
