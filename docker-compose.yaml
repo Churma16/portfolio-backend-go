@@ -8,7 +8,7 @@ services:
       - ./db/migration:/migrations
     command:
       - -path=/migrations
-      - -database=postgresql://root:secret@postgres:5432/portfolio_go?sslmode=disable
+      - -database=postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-portfolio_go}?sslmode=disable
       - -verbose
       - up
     depends_on:
@@ -17,17 +17,18 @@ services:
     networks:
       - portfolio_network
 
-  # 1. Aplikasi Go
+  # 1. Aplikasi Go API
   api:
     build: .
     container_name: go_portfolio
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
+    env_file:
+      - app.env
     environment:
-      - DB_SOURCE=postgresql://root:secret@postgres:5432/portfolio_go?sslmode=disable
-      - REDIS_ADDRESS=redis:6379
-      - REDIS_ADDR=redis:6379
       - SERVER_ADDRESS=0.0.0.0:8080
+      - DB_SOURCE=postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-portfolio_go}?sslmode=disable
+      - REDIS_ADDRESS=redis:6379
       - EXPRESS_API_URL=http://express_portfolio:4000
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -50,13 +51,13 @@ services:
     image: postgres:15-alpine
     container_name: go_postgres
     environment:
-      - POSTGRES_USER=root
-      - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB=portfolio_go
+      - POSTGRES_USER=${POSTGRES_USER:-root}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secret}
+      - POSTGRES_DB=${POSTGRES_DB:-portfolio_go}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U root -d portfolio_go"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-root} -d ${POSTGRES_DB:-portfolio_go}"]
       interval: 5s
       timeout: 5s
       retries: 5

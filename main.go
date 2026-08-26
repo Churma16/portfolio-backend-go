@@ -14,10 +14,9 @@ import (
 )
 
 func main() {
-	// 1. Load file .env
-	err := godotenv.Load("app.env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	// 1. Load file app.env if present
+	if err := godotenv.Load("app.env"); err != nil {
+		log.Println("[INFO] No app.env file found, reading from system environment variables")
 	}
 
 	tokenKey := os.Getenv("TOKEN_SYMMETRIC_KEY")
