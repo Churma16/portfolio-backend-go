@@ -60,14 +60,12 @@ func (server *Server) createProject(ctx *gin.Context) {
 	uploadedThumbnailFile, fileError := ctx.FormFile("thumbnail")
 	projectFolderName := "projects"
 	if fileError == nil {
-
-		savedThumbnailURL, saveError := util.SaveUploadedFile(ctx, uploadedThumbnailFile, projectFolderName)
+		savedThumbnailURL, saveError := server.storage.UploadFile(ctx.Request.Context(), uploadedThumbnailFile, projectFolderName)
 		if saveError != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload thumbnail"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload thumbnail: " + saveError.Error()})
 			return
 		}
 		thumbnailFileURL = savedThumbnailURL
-	} else {
 	}
 
 	// Parse JSON arrays from form fields directly
@@ -425,15 +423,12 @@ func (server *Server) updateProject(ctx *gin.Context) {
 		// New thumbnail uploaded
 		const folderName = "projects"
 		// Delete the old thumbnail if it exists
-		if existingProject.Thumbnail.Valid {
-			if err := util.DeleteFile(existingProject.Thumbnail.String); err != nil {
-				ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
-				return
-			}
+		if existingProject.Thumbnail.Valid && existingProject.Thumbnail.String != "" {
+			_ = server.storage.DeleteFile(ctx.Request.Context(), existingProject.Thumbnail.String)
 		}
-		url, saveErr := util.SaveUploadedFile(ctx, uploadedFile, folderName)
+		url, saveErr := server.storage.UploadFile(ctx.Request.Context(), uploadedFile, folderName)
 		if saveErr != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload thumbnail"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload thumbnail: " + saveErr.Error()})
 			return
 		}
 		thumbnailURL = url
@@ -552,11 +547,8 @@ func (server *Server) deleteProject(ctx *gin.Context) {
 		return
 	}
 
-	if project.Thumbnail.Valid {
-		if err := util.DeleteFile(project.Thumbnail.String); err != nil {
-			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Failed to delete project thumbnail"))
-			return
-		}
+	if project.Thumbnail.Valid && project.Thumbnail.String != "" {
+		_ = server.storage.DeleteFile(ctx.Request.Context(), project.Thumbnail.String)
 	}
 
 	// 4. Return Success

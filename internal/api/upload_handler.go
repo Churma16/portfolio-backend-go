@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,25 +34,15 @@ func (server *Server) uploadFile(ctx *gin.Context) {
 		return
 	}
 
-	// 3. Generate Nama File Unik (Timestamp + Nama Asli)
-	// Contoh: 173546789_avatar.jpg
-	filename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
-
-	// Bersihkan nama file dari spasi aneh (opsional tapi bagus)
-	filename = strings.ReplaceAll(filename, " ", "_")
-
-	// 4. Tentukan lokasi simpan (Folder 'uploads' di root project)
-	savePath := filepath.Join("uploads", filename)
-
-	// 5. Simpan File ke Disk
-	if err := ctx.SaveUploadedFile(file, savePath); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file ke server"})
+	// 3. Simpan File via StorageService
+	objectKey, err := server.storage.UploadFile(ctx.Request.Context(), file, "uploads")
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file: " + err.Error()})
 		return
 	}
 
-	// 6. Balikkan URL Path supaya bisa disimpan Frontend
-	// Format URL: http://localhost:8080/uploads/namafile.jpg
-	fileUrl := fmt.Sprintf("/uploads/%s", filename)
+	// 4. Balikkan URL Path / Key
+	fileUrl := fmt.Sprintf("/%s", strings.TrimPrefix(objectKey, "/"))
 
 	ctx.JSON(http.StatusOK, uploadResponse{
 		FileUrl: fileUrl,

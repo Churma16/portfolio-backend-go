@@ -63,26 +63,24 @@ func (server *Server) createProfile(ctx *gin.Context) {
 	var avatarUrl string
 	fileAvatar, errAvatar := ctx.FormFile("avatar")
 	if errAvatar == nil { // File ada
-		url, errSave := util.SaveUploadedFile(ctx, fileAvatar, "avatar")
+		url, errSave := server.storage.UploadFile(ctx.Request.Context(), fileAvatar, "avatar")
 		if errSave != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload avatar: " + errSave.Error()})
 			return
 		}
 		avatarUrl = url
-	} else {
 	}
 
 	// 3. Handle Upload CV (SETELAH Bind)
 	var cvUrl string
 	fileCV, errCV := ctx.FormFile("cv_files")
 	if errCV == nil { // File ada
-		url, errSave := util.SaveUploadedFile(ctx, fileCV, "cv_files")
+		url, errSave := server.storage.UploadFile(ctx.Request.Context(), fileCV, "cv_files")
 		if errSave != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload CV: " + errSave.Error()})
 			return
 		}
 		cvUrl = url
-	} else {
 	}
 
 	// 4. Handle Socials (String JSON -> RawMessage)
@@ -115,7 +113,7 @@ func (server *Server) createProfile(ctx *gin.Context) {
 	}
 
 	//	Sukses
-	server.redisClient.Del(ctx, "site_profile")
+	util.DeleteCacheByPrefix(server.redisClient, "site_profile")
 	rsp := newProfileResponse(profile)
 	ctx.JSON(http.StatusOK, rsp)
 }
@@ -200,13 +198,10 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 	fileAvatar, errAvatar := ctx.FormFile("avatar")
 	if errAvatar == nil {
 		// User upload file baru -> Delete old file first
-		if oldProfile.Avatar.Valid {
-			if err := util.DeleteFile(oldProfile.Avatar.String); err != nil {
-				ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
-				return
-			}
+		if oldProfile.Avatar.Valid && oldProfile.Avatar.String != "" {
+			_ = server.storage.DeleteFile(ctx.Request.Context(), oldProfile.Avatar.String)
 		}
-		url, errSave := util.SaveUploadedFile(ctx, fileAvatar, "avatar")
+		url, errSave := server.storage.UploadFile(ctx.Request.Context(), fileAvatar, "avatar")
 		if errSave != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload avatar baru: " + errSave.Error()})
 			return
@@ -219,13 +214,10 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 	fileCV, errCV := ctx.FormFile("cv_files")
 	if errCV == nil {
 		// User upload file baru -> Delete old file first
-		if oldProfile.CvFiles.Valid {
-			if err := util.DeleteFile(oldProfile.CvFiles.String); err != nil {
-				ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
-				return
-			}
+		if oldProfile.CvFiles.Valid && oldProfile.CvFiles.String != "" {
+			_ = server.storage.DeleteFile(ctx.Request.Context(), oldProfile.CvFiles.String)
 		}
-		url, errSave := util.SaveUploadedFile(ctx, fileCV, "cv_files")
+		url, errSave := server.storage.UploadFile(ctx.Request.Context(), fileCV, "cv_files")
 		if errSave != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload CV baru: " + errSave.Error()})
 			return
@@ -264,7 +256,7 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 		return
 	}
 
-	server.redisClient.Del(ctx, "site_profile")
+	util.DeleteCacheByPrefix(server.redisClient, "site_profile")
 	rsp := newProfileResponse(updatedProfile)
 	ctx.JSON(http.StatusOK, rsp)
 }
@@ -281,7 +273,7 @@ func (server *Server) deleteProfile(ctx *gin.Context) {
 	}
 
 	// 3. Response Sukses
-	server.redisClient.Del(ctx, "site_profile")
+	util.DeleteCacheByPrefix(server.redisClient, "site_profile")
 	ctx.JSON(http.StatusOK, gin.H{"message": "Profile berhasil dihapus"})
 }
 

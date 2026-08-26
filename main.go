@@ -4,6 +4,7 @@ import (
 	"context"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/api"
+	"go-portfolio-api/internal/storage"
 	"log"
 	"os"
 
@@ -46,10 +47,10 @@ func main() {
 	}
 	defer conn.Close()
 
-	// 3. Init Store & Server
-	//store := db.New(conn)
+	// 3. Init Store, Storage & Server
 	store := db.NewStore(conn)
-	server := api.NewServer(store, redisClient, tokenKey)
+	storageService := storage.InitStorageService(context.Background())
+	server := api.NewServer(store, redisClient, tokenKey, storageService)
 
 	// 4. Jalankan Server
 	log.Println("Server running on", serverAddress)

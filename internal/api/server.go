@@ -3,6 +3,7 @@ package api
 import (
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/service"
+	"go-portfolio-api/internal/storage"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -14,18 +15,20 @@ import (
 type Server struct {
 	store           *db.Store // Ini struct hasil generate SQLC
 	categoryService service.CategoryService
+	storage         storage.StorageService
 	router          *gin.Engine
 	redisClient     *redis.Client
-	tokenKey        string // <--- TAMBAHKAN INI (Untuk menyimpan TOKEN_SYMMETRIC_KEY)
+	tokenKey        string // (Untuk menyimpan TOKEN_SYMMETRIC_KEY)
 }
 
 // NewServer membuat instance server baru
-func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string) *Server {
+func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string, storageService storage.StorageService) *Server {
 	server := &Server{
 		store:           store,
 		redisClient:     redisClient,
-		tokenKey:        tokenKey,                          // Simpan ke struct
-		categoryService: service.NewCategoryService(store), // Initialize categoryService
+		tokenKey:        tokenKey,
+		categoryService: service.NewCategoryService(store),
+		storage:         storageService,
 	}
 	router := gin.Default()
 	// ADD CORS CONFIGURATION

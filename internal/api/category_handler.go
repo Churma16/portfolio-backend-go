@@ -38,14 +38,16 @@ func (server *Server) createCategory(ctx *gin.Context) {
 
 func (server *Server) showCategories(ctx *gin.Context) {
 	cacheKey := "categories:list:all"
-	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
-	if cacheErr == nil {
-		var cachedCategories []dto.CategoryData
-		if err := json.Unmarshal([]byte(cacheValue), &cachedCategories); err == nil {
-			meta := response.NewMetaWithCount(http.StatusOK, "success", "Kategori ditemukan (Cached)", len(cachedCategories))
-			resp := response.NewMultipleDataResponse(meta, cachedCategories)
-			ctx.JSON(http.StatusOK, resp)
-			return
+	if server.redisClient != nil {
+		cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
+		if cacheErr == nil {
+			var cachedCategories []dto.CategoryData
+			if err := json.Unmarshal([]byte(cacheValue), &cachedCategories); err == nil {
+				meta := response.NewMetaWithCount(http.StatusOK, "success", "Kategori ditemukan (Cached)", len(cachedCategories))
+				resp := response.NewMultipleDataResponse(meta, cachedCategories)
+				ctx.JSON(http.StatusOK, resp)
+				return
+			}
 		}
 	}
 
@@ -56,8 +58,10 @@ func (server *Server) showCategories(ctx *gin.Context) {
 	}
 
 	data := mapper.MapCategoriesToData(categories)
-	cachedData, _ := json.Marshal(data)
-	server.redisClient.Set(ctx, cacheKey, cachedData, 1*time.Hour)
+	if server.redisClient != nil {
+		cachedData, _ := json.Marshal(data)
+		server.redisClient.Set(ctx, cacheKey, cachedData, 1*time.Hour)
+	}
 
 	meta := response.NewMetaWithCount(http.StatusOK, "success", "Kategori ditemukan", len(categories))
 	resp := response.NewMultipleDataResponse(meta, data)
@@ -76,14 +80,16 @@ func (server *Server) showCategory(ctx *gin.Context) {
 	cacheKey := "categories:single:" + idParam
 
 	// Check if data exists in cache
-	cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
-	if cacheErr == nil {
-		var cachedCategory dto.CategoryData
-		if err := json.Unmarshal([]byte(cacheValue), &cachedCategory); err == nil {
-			meta := response.NewMeta(http.StatusOK, "success", "Kategori ditemukan (Cached)")
-			resp := response.NewSingleDataResponse(meta, cachedCategory)
-			ctx.JSON(http.StatusOK, resp)
-			return
+	if server.redisClient != nil {
+		cacheValue, cacheErr := server.redisClient.Get(ctx, cacheKey).Result()
+		if cacheErr == nil {
+			var cachedCategory dto.CategoryData
+			if err := json.Unmarshal([]byte(cacheValue), &cachedCategory); err == nil {
+				meta := response.NewMeta(http.StatusOK, "success", "Kategori ditemukan (Cached)")
+				resp := response.NewSingleDataResponse(meta, cachedCategory)
+				ctx.JSON(http.StatusOK, resp)
+				return
+			}
 		}
 	}
 
@@ -98,8 +104,10 @@ func (server *Server) showCategory(ctx *gin.Context) {
 	}
 
 	data := mapper.MapCategoryToData(category)
-	cachedData, _ := json.Marshal(data)
-	server.redisClient.Set(ctx, cacheKey, cachedData, 1*time.Hour)
+	if server.redisClient != nil {
+		cachedData, _ := json.Marshal(data)
+		server.redisClient.Set(ctx, cacheKey, cachedData, 1*time.Hour)
+	}
 
 	meta := response.NewMeta(http.StatusOK, "success", "Kategori ditemukan")
 	resp := response.NewSingleDataResponse(meta, data)
