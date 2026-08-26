@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.2](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.1...v0.0.2) (2026-08-26)
+
+
+### Features
+
+* **storage:** define StorageService interface and implement LocalStorage driver ([6d32c6d](https://github.com/Churma16/portfolio-backend-go/commit/6d32c6d287c76b8baa80cd905a54f2fb6af07976))
+* **storage:** implement Cloudflare R2 object storage driver ([956f1cf](https://github.com/Churma16/portfolio-backend-go/commit/956f1cfddda7f88dc71aefdb92de9069d1da1015))
+
 ## 0.0.1 (2026-08-26)
 
 
