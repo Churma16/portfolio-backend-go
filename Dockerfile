@@ -6,7 +6,6 @@ COPY server-app ./main
 
 # Copy other necessary files
 COPY db/migration ./db/migration
-COPY app.env .
 
 RUN apk add --no-cache bash curl
 
