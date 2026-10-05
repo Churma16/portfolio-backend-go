@@ -23,7 +23,7 @@ jobs:
         run: go build -o migrate-data scripts/migrate_data.go
 
       - name: Deploy Script to VPS
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
@@ -33,7 +33,7 @@ jobs:
           strip_components: 0
 
       - name: Execute Migration in Docker
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}

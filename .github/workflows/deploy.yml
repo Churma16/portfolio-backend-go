@@ -49,7 +49,10 @@ jobs:
 
       - name: Activate Service and Verify on VPS
         uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: "ghcr.io/churma16/portfolio-backend-go:${{ github.ref_name }}"
         with:
+          envs: IMAGE_TAG
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
@@ -57,8 +60,10 @@ jobs:
             set -euo pipefail
             if [ -d /root/churma-codes/scripts ]; then
               cd /root/churma-codes
-              ./scripts/deploy.sh go "ghcr.io/churma16/portfolio-backend-go:${{ github.ref_name }}"
+              ./scripts/deploy.sh go "$IMAGE_TAG"
               ./scripts/smoke-test.sh go
             else
               echo "[info] /root/churma-codes not yet found on VPS. Skipping container activation until infra is deployed."
             fi
+
+
