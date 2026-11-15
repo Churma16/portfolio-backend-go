@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
@@ -221,7 +222,7 @@ func (server *Server) showWorkExperience(ctx *gin.Context) {
 	// Retrieve work experience
 	workExperience, err := server.store.GetWorkExperience(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Work experience not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -373,6 +374,10 @@ func (server *Server) deleteWorkExperience(ctx *gin.Context) {
 
 	deletedWorkExp, err := server.store.DeleteWorkExperience(ctx, id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Work experience not found"))
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}

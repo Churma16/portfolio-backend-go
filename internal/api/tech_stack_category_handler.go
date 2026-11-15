@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
@@ -96,7 +97,7 @@ func (server *Server) showTechStackCategory(ctx *gin.Context) {
 
 	category, err := server.store.GetTechStackCategory(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech stack category not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -125,7 +126,7 @@ func (server *Server) updateTechStackCategory(ctx *gin.Context) {
 
 	existingCategory, err := server.store.GetTechStackCategory(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech stack category not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -168,6 +169,10 @@ func (server *Server) deleteTechStackCategory(ctx *gin.Context) {
 
 	category, err := server.store.DeleteTechStackCategory(ctx, id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech stack category not found"))
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
