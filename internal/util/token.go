@@ -11,10 +11,19 @@ import (
 // HAPUS variabel global SecretKey!
 // var SecretKey = []byte("rahasia_super_negara_api") <-- BUANG INI
 
-var ErrTokenInvalid = errors.New("token tidak valid")
+var (
+	ErrTokenInvalid = errors.New("token tidak valid")
+	ErrInvalidKey   = errors.New("TOKEN_SYMMETRIC_KEY must be exactly 32 characters and cannot be empty or default fallback")
+)
+
+const InsecureDefaultKey = "rahasia_super_negara_api"
 
 // Update: Tambahkan parameter 'secretKey string'
 func CreateToken(userID int64, duration time.Duration, secretKey string) (string, error) {
+	if len(secretKey) != 32 || secretKey == InsecureDefaultKey {
+		return "", ErrInvalidKey
+	}
+
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(duration).Unix(),
@@ -29,6 +38,10 @@ func CreateToken(userID int64, duration time.Duration, secretKey string) (string
 
 // Update: Tambahkan parameter 'secretKey string'
 func VerifyToken(tokenString string, secretKey string) (int64, error) {
+	if len(secretKey) != 32 || secretKey == InsecureDefaultKey {
+		return 0, ErrInvalidKey
+	}
+
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
