@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/jackc/pgx/v5"
 )
 
 // Struct request pakai tag 'form' bukan 'json'
@@ -137,7 +139,11 @@ func (server *Server) getProfile(ctx *gin.Context) {
 	// 2. Panggil Database
 	profile, err := server.store.GetProfileByUserId(ctx, req.ID)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Profile tidak ditemukan"})
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Profile tidak ditemukan"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -171,7 +177,7 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid tech stack ID"))
+		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Invalid profile ID"))
 		return
 	}
 
@@ -189,7 +195,17 @@ func (server *Server) updateProfile(ctx *gin.Context) {
 	// 2. AMBIL DATA LAMA (PENTING!)
 	oldProfile, err := server.store.GetProfileById(ctx, id)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Profile belum dibuat, silahkan Create dulu"})
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Profile belum dibuat, silahkan Create dulu"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Security: verify that the profile belongs to the authenticated user
+	if oldProfile.UserID != userID {
+		ctx.JSON(http.StatusForbidden, response.ErrorResponse(http.StatusForbidden, "error", "Unauthorized to update this profile"))
 		return
 	}
 
@@ -265,11 +281,30 @@ func (server *Server) deleteProfile(ctx *gin.Context) {
 	// 1. Ambil ID User dari Token (Wajib Login!)
 	userID := ctx.MustGet("user_id").(int64)
 
-	// 2. Eksekusi Hapus
-	_, err := server.store.DeleteProfile(ctx, userID)
+	// Verify profile exists and fetch media file paths for cleanup
+	profile, err := server.store.GetProfileByUserId(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Profile tidak ditemukan"))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
+		return
+	}
+
+	// 2. Eksekusi Hapus dari DB
+	_, err = server.store.DeleteProfile(ctx, userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
+	}
+
+	// Clean up storage media files
+	if profile.Avatar.Valid && profile.Avatar.String != "" {
+		_ = server.storage.DeleteFile(ctx.Request.Context(), profile.Avatar.String)
+	}
+	if profile.CvFiles.Valid && profile.CvFiles.String != "" {
+		_ = server.storage.DeleteFile(ctx.Request.Context(), profile.CvFiles.String)
 	}
 
 	// 3. Response Sukses
