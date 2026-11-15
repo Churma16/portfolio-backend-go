@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.5](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.4...v0.0.5) (2026-11-15)
+
+### Bug Fixes
+
+* **p0:** resolve driver error mismatch, profile IDOR, and transaction leak (Phase 1 Triage) ([#3](https://github.com/Churma16/portfolio-backend-go/issues/3)) ([8e5a8e8](https://github.com/Churma16/portfolio-backend-go/commit/8e5a8e88c4360cd324da131d891a4fcf067c1c2e)), references [#2](https://github.com/Churma16/portfolio-backend-go/issues/2)
+
 ## [0.0.4](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.3...v0.0.4) (2026-10-05)
 
 ## [0.0.3](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.2...v0.0.3) (2026-10-05)
