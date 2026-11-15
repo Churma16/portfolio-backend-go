@@ -29,6 +29,13 @@ func (store *Store) ExecTx(ctx context.Context, transactionFunc func(*Queries) e
 		return transactionError
 	}
 
+	defer func() {
+		if p := recover(); p != nil {
+			_ = transaction.Rollback(ctx)
+			panic(p)
+		}
+	}()
+
 	queries := New(transaction)
 	executionError := transactionFunc(queries)
 	if executionError != nil {

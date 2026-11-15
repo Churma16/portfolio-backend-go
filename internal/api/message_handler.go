@@ -6,6 +6,7 @@ import (
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,7 +21,6 @@ type createMessageRequest struct {
 }
 
 func (server *Server) createMessage(ctx *gin.Context) {
-	println(ctx)
 	var req createMessageRequest
 	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -47,25 +47,30 @@ func (server *Server) createMessage(ctx *gin.Context) {
 		return
 	}
 
-	// 3. Kirim Email (Pake Goroutine biar Cepat!) 🚀
-	// Di Laravel ini butuh Queue Worker, di Go cukup "go func()"
-	go func() {
-		emailData := util.EmailRequest{
-			SenderName:  req.Name,
-			SenderEmail: req.Email,
-			Content:     req.Content,
+	// 3. Kirim Email (Asynchronous with bounded timeout)
+	emailData := util.EmailRequest{
+		SenderName:  req.Name,
+		SenderEmail: req.Email,
+		Content:     req.Content,
+	}
+
+	go func(data util.EmailRequest) {
+		done := make(chan error, 1)
+		go func() {
+			done <- util.SendContactEmail(data)
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				fmt.Printf("[fail] GAGAL KIRIM EMAIL: %v\n", err)
+			} else {
+				fmt.Printf("[success] EMAIL TERKIRIM KE: %s\n", data.SenderEmail)
+			}
+		case <-time.After(15 * time.Second):
+			fmt.Printf("[fail] TIMEOUT KIRIM EMAIL KE: %s\n", data.SenderEmail)
 		}
-		// Kita abaikan error di background process untuk kesederhanaan,
-		// tapi idealnya di-log.
-		err := util.SendContactEmail(emailData)
-		if err != nil {
-			// Kalau Gagal, print ke terminal server
-			fmt.Printf("❌ GAGAL KIRIM EMAIL: %v\n", err)
-		} else {
-			// Kalau Sukses
-			fmt.Printf("✅ EMAIL TERKIRIM KE: %s\n", emailData.SenderEmail)
-		}
-	}()
+	}(emailData)
 
 	// 4. Return Response
 	meta := response.NewMeta(http.StatusOK, "success", "Pesan sedang dikirim!")

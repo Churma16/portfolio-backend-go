@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
@@ -107,6 +108,10 @@ func (server *Server) showTechStack(ctx *gin.Context) {
 
 	techStackDetails, retrievalError := server.store.GetTechStack(ctx, techStackID)
 	if retrievalError != nil {
+		if errors.Is(retrievalError, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech stack not found"))
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", retrievalError.Error()))
 		return
 	}
@@ -134,7 +139,7 @@ func (server *Server) updateTechStack(ctx *gin.Context) {
 
 	existingTechStack, err := server.store.GetTechStack(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech Stack not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
@@ -181,6 +186,10 @@ func (server *Server) deleteTechStack(ctx *gin.Context) {
 
 	techStack, err := server.store.DeleteTechStack(ctx, id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech stack not found"))
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}

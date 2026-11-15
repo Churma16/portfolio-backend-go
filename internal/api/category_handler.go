@@ -1,8 +1,8 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,6 +13,7 @@ import (
 	"go-portfolio-api/internal/util"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 )
 
 func (server *Server) createCategory(ctx *gin.Context) {
@@ -95,7 +96,7 @@ func (server *Server) showCategory(ctx *gin.Context) {
 
 	category, err := server.categoryService.GetCategory(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
 		} else {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -131,7 +132,7 @@ func (server *Server) updateCategory(ctx *gin.Context) {
 
 	category, err := server.categoryService.UpdateCategory(ctx, id, req)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
 		} else {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -157,7 +158,7 @@ func (server *Server) deleteCategory(ctx *gin.Context) {
 
 	category, err := server.categoryService.DeleteCategory(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Category not found"))
 		} else {
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", "Internal server error"))
