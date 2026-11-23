@@ -6,7 +6,6 @@ import (
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,30 +46,14 @@ func (server *Server) createMessage(ctx *gin.Context) {
 		return
 	}
 
-	// 3. Kirim Email (Asynchronous with bounded timeout)
-	emailData := util.EmailRequest{
-		SenderName:  req.Name,
-		SenderEmail: req.Email,
-		Content:     req.Content,
-	}
-
-	go func(data util.EmailRequest) {
-		done := make(chan error, 1)
-		go func() {
-			done <- util.SendContactEmail(data)
-		}()
-
-		select {
-		case err := <-done:
-			if err != nil {
-				fmt.Printf("[fail] GAGAL KIRIM EMAIL: %v\n", err)
-			} else {
-				fmt.Printf("[success] EMAIL TERKIRIM KE: %s\n", data.SenderEmail)
-			}
-		case <-time.After(15 * time.Second):
-			fmt.Printf("[fail] TIMEOUT KIRIM EMAIL KE: %s\n", data.SenderEmail)
+	// 3. Kirim Notifikasi via portfolio-notifier (Asynchronous with bounded timeout)
+	go func(name, email, content string) {
+		if err := util.SendNotification(name, email, content, "go"); err != nil {
+			fmt.Printf("[fail] GAGAL KIRIM NOTIFIKASI KE NOTIFIER: %v\n", err)
+		} else {
+			fmt.Printf("[success] NOTIFIKASI TERKIRIM KE PORTFOLIO-NOTIFIER UNTUK: %s\n", email)
 		}
-	}(emailData)
+	}(req.Name, req.Email, req.Content)
 
 	// 4. Return Response
 	meta := response.NewMeta(http.StatusOK, "success", "Pesan sedang dikirim!")

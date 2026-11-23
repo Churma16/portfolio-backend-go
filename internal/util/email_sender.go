@@ -2,59 +2,70 @@ package util
 
 import (
 	"bytes"
-	_ "embed" // Penting: Jangan lupa import ini untuk fitur embed
+	"encoding/json"
 	"fmt"
-	"html/template"
+	"net/http"
 	"os"
-
-	"github.com/resend/resend-go/v2"
+	"time"
 )
 
-//go:embed templates/contact.html
-var contactEmailTemplate string
+type NotificationPayload struct {
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Message string `json:"message"`
+	Source  string `json:"source"`
+}
 
+var notifierHTTPClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
+
+// SendNotification dispatches contact form notifications to portfolio-notifier microservice
+func SendNotification(name, email, message, source string) error {
+	notifierURL := os.Getenv("NOTIFIER_URL")
+	if notifierURL == "" {
+		notifierURL = "http://portfolio-notifier:8080/api/notify"
+	}
+
+	payload := NotificationPayload{
+		Name:    name,
+		Email:   email,
+		Message: message,
+		Source:  source,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal notification payload: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, notifierURL, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create http request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := notifierHTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to dispatch notification: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("notifier returned status code %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+// EmailRequest preserved for backwards compatibility
 type EmailRequest struct {
 	SenderName  string
 	SenderEmail string
 	Content     string
 }
 
+// SendContactEmail delegates to SendNotification
 func SendContactEmail(req EmailRequest) error {
-	// 1. Parse Template HTML
-	tmpl, err := template.New("contact").Parse(contactEmailTemplate)
-	if err != nil {
-		return fmt.Errorf("gagal parsing template email: %w", err)
-	}
-
-	// 2. Masukkan data (req) ke dalam template
-	var body bytes.Buffer
-	if err := tmpl.Execute(&body, req); err != nil {
-		return fmt.Errorf("gagal execute template email: %w", err)
-	}
-
-	// 3. Setup Resend
-	apiKey := os.Getenv("RESEND_API_KEY")
-	fromEmail := os.Getenv("RESEND_FROM_EMAIL")
-	targetEmail := "fathanmf16@gmail.com"
-
-	client := resend.NewClient(apiKey)
-
-	params := &resend.SendEmailRequest{
-		From:    fmt.Sprintf("Portfolio Contact <%s>", fromEmail),
-		To:      []string{targetEmail},
-		Subject: fmt.Sprintf("[Pesan Baru]: %s", req.SenderName),
-
-		// 4. Gunakan hasil render template sebagai HTML string
-		Html: body.String(),
-
-		ReplyTo: req.SenderEmail,
-	}
-
-	_, err = client.Emails.Send(params)
-	if err != nil {
-		fmt.Printf("Error sending email via Resend: %v\n", err)
-		return err
-	}
-
-	return nil
+	return SendNotification(req.SenderName, req.SenderEmail, req.Content, "go")
 }
