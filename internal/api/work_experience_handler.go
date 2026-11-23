@@ -436,31 +436,34 @@ func (server *Server) reorderWorkExperiences(ctx *gin.Context) {
 
 	currentWorkExp, err := server.store.GetWorkExperience(ctx, workExpID)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Work experience not found"})
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Work experience not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	currentOrder := currentWorkExp.ColumnOrder
 
-	var targetOrder int32
 	var adjacentWorkExp db.WorkExperience
 
 	if req.Direction == "up" {
-		targetOrder = currentOrder - 1
-		if targetOrder < 1 {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move work experience further up"})
-			return
-		}
-		adjacentWorkExp, err = server.store.GetWorkExperienceByColumnOrder(ctx, targetOrder)
+		adjacentWorkExp, err = server.store.GetAdjacentWorkExperienceUp(ctx, currentOrder)
 	} else { // down
-		targetOrder = currentOrder + 1
-		adjacentWorkExp, err = server.store.GetWorkExperienceByColumnOrder(ctx, targetOrder)
+		adjacentWorkExp, err = server.store.GetAdjacentWorkExperienceDown(ctx, currentOrder)
 	}
 
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move work experience further in that direction"})
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move work experience further in that direction"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	targetOrder := adjacentWorkExp.ColumnOrder
 
 	errTx := server.store.ExecTx(ctx, func(q *db.Queries) error {
 		swapParams1 := db.UpdateWorkExperienceColumnOrderParams{

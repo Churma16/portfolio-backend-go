@@ -223,32 +223,35 @@ func (server *Server) reorderTechStack(ctx *gin.Context) {
 	// 2. Retrieve Current Tech Stack
 	currentTechStack, err := server.store.GetTechStack(ctx, techStackID)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech stack not found"))
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(http.StatusNotFound, "error", "Tech stack not found"))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
 
 	currentOrder := currentTechStack.ColumnOrder
 
 	// 3. Determine Target Order & Fetch Adjacent Tech Stack
-	var targetOrder int32
 	var adjacentTechStack db.TechStack
 
 	if req.Direction == "up" {
-		targetOrder = currentOrder - 1
-		if targetOrder < 1 {
-			ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Cannot move tech stack further up"))
-			return
-		}
-		adjacentTechStack, err = server.store.GetTechStackByColumnOrder(ctx, targetOrder)
+		adjacentTechStack, err = server.store.GetAdjacentTechStackUp(ctx, currentOrder)
 	} else { // down
-		targetOrder = currentOrder + 1
-		adjacentTechStack, err = server.store.GetTechStackByColumnOrder(ctx, targetOrder)
+		adjacentTechStack, err = server.store.GetAdjacentTechStackDown(ctx, currentOrder)
 	}
 
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Cannot move tech stack further in that direction"))
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusBadRequest, response.ErrorResponse(http.StatusBadRequest, "error", "Cannot move tech stack further in that direction"))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(http.StatusInternalServerError, "error", err.Error()))
 		return
 	}
+
+	targetOrder := adjacentTechStack.ColumnOrder
 
 	// 4. TRANSACTION: Swap Column Orders
 	errTx := server.store.ExecTx(ctx, func(q *db.Queries) error {

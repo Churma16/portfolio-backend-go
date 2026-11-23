@@ -17,6 +17,20 @@ SELECT *
 FROM projects
 WHERE column_order = $1 LIMIT 1;
 
+-- name: GetAdjacentProjectUp :one
+SELECT *
+FROM projects
+WHERE column_order < $1
+ORDER BY column_order DESC
+LIMIT 1;
+
+-- name: GetAdjacentProjectDown :one
+SELECT *
+FROM projects
+WHERE column_order > $1
+ORDER BY column_order ASC
+LIMIT 1;
+
 -- name: UpdateProject :one
 UPDATE projects
 SET title       = $2,

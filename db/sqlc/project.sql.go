@@ -172,6 +172,64 @@ func (q *Queries) DeleteProjectTechStacks(ctx context.Context, projectID int64) 
 	return err
 }
 
+const getAdjacentProjectDown = `-- name: GetAdjacentProjectDown :one
+SELECT id, title, slug, thumbnail, content, demo_url, repo_url, is_featured, published_at, column_order, category_id, created_at, updated_at
+FROM projects
+WHERE column_order > $1
+ORDER BY column_order ASC
+LIMIT 1
+`
+
+func (q *Queries) GetAdjacentProjectDown(ctx context.Context, columnOrder int32) (Project, error) {
+	row := q.db.QueryRow(ctx, getAdjacentProjectDown, columnOrder)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Thumbnail,
+		&i.Content,
+		&i.DemoUrl,
+		&i.RepoUrl,
+		&i.IsFeatured,
+		&i.PublishedAt,
+		&i.ColumnOrder,
+		&i.CategoryID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAdjacentProjectUp = `-- name: GetAdjacentProjectUp :one
+SELECT id, title, slug, thumbnail, content, demo_url, repo_url, is_featured, published_at, column_order, category_id, created_at, updated_at
+FROM projects
+WHERE column_order < $1
+ORDER BY column_order DESC
+LIMIT 1
+`
+
+func (q *Queries) GetAdjacentProjectUp(ctx context.Context, columnOrder int32) (Project, error) {
+	row := q.db.QueryRow(ctx, getAdjacentProjectUp, columnOrder)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Thumbnail,
+		&i.Content,
+		&i.DemoUrl,
+		&i.RepoUrl,
+		&i.IsFeatured,
+		&i.PublishedAt,
+		&i.ColumnOrder,
+		&i.CategoryID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getCategoriesByIDs = `-- name: GetCategoriesByIDs :many
 SELECT id, name, slug, color, created_at, updated_at
 FROM categories

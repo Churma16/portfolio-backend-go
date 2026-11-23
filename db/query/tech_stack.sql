@@ -33,6 +33,20 @@ FROM tech_stacks
 WHERE column_order = $1
 LIMIT 1;
 
+-- name: GetAdjacentTechStackUp :one
+SELECT *
+FROM tech_stacks
+WHERE column_order < $1
+ORDER BY column_order DESC
+LIMIT 1;
+
+-- name: GetAdjacentTechStackDown :one
+SELECT *
+FROM tech_stacks
+WHERE column_order > $1
+ORDER BY column_order ASC
+LIMIT 1;
+
 -- name: DeleteTechStack :one
 delete
 from tech_stacks
