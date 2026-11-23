@@ -117,6 +117,10 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string, stor
 
 	// Rute Message
 	apiRoutes.POST("/messages", server.rateLimiterMiddleware("3-H"), server.createMessage)
+
+	// Rute Cache
+	authRoutes.POST("/cache/flush", server.flushCache)
+
 	// Contoh: Rute Cek "Siapa Saya?" (Hanya bisa diakses kalau login)
 	authRoutes.GET("/users/me", func(ctx *gin.Context) {
 		userID, _ := ctx.Get("user_id")
