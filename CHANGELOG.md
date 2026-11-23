@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.7](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.6...v0.0.7) (2026-11-23)
+
+### Features
+
+* **cache:** add admin cache flush endpoint and tests with snake_case key alignment ([#7](https://github.com/Churma16/portfolio-backend-go/issues/7)) ([5875f2f](https://github.com/Churma16/portfolio-backend-go/commit/5875f2f72abc619b1ab79f1dd0b5d90ccbc860ca))
+
 ## [0.0.6](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.5...v0.0.6) (2026-11-23)
 
 ## [0.0.5](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.4...v0.0.5) (2026-11-15)
