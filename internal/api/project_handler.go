@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/dto"
 	"go-portfolio-api/internal/response"
@@ -34,6 +35,7 @@ type projectData struct {
 	Content     string `json:"content"`
 	DemoUrl     string `json:"demo_url"`
 	RepoUrl     string `json:"repo_url"`
+	IsFeatured  bool   `json:"is_featured"`
 	ColumnOrder int32  `json:"column_order"`
 	CategoryID  int64  `json:"category_id"`
 	PublishedAt string `json:"published_at"`
@@ -44,7 +46,7 @@ type projectData struct {
 	// Kita pakai Pointer (*) supaya kalau tidak diminta, nilainya null (tidak muncul di JSON)
 	Category   *dto.CategoryData `json:"category,omitempty"`
 	TechStacks []TechStackData   `json:"tech_stack,omitempty"`
-	Tags       []TagData         `json:"tags,omitempty"`
+	Tags       []TagData         `json:"tags"`
 }
 
 func (server *Server) createProject(ctx *gin.Context) {
@@ -268,6 +270,8 @@ func (server *Server) showProjects(context *gin.Context) {
 		// Attach Tags (from map)
 		if tags, exists := tagLookup[project.ID]; exists {
 			projectItem.Tags = tags
+		} else {
+			projectItem.Tags = []TagData{}
 		}
 
 		projectResponseList = append(projectResponseList, projectItem)
@@ -383,6 +387,8 @@ func (server *Server) showProject(context *gin.Context) {
 	// Attach Tags
 	if tags, exists := tagLookup[project.ID]; exists {
 		projectItem.Tags = tags
+	} else {
+		projectItem.Tags = []TagData{}
 	}
 
 	//cachedJsonData, _ := json.Marshal(projectItem)
@@ -580,32 +586,35 @@ func (server *Server) reorderProjects(ctx *gin.Context) {
 	// 2. Retrieve Current Project
 	currentProject, err := server.store.GetProject(ctx, projectID)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	currentOrder := currentProject.ColumnOrder
 
 	// 3. Determine Target Order & Fetch Adjacent Project
-	var targetOrder int32
 	var adjacentProject db.Project
 
 	if req.Direction == "up" {
-		targetOrder = currentOrder - 1
-		if targetOrder < 1 {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move project further up"})
-			return
-		}
-		adjacentProject, err = server.store.GetProjectByColumnOrder(ctx, targetOrder)
+		adjacentProject, err = server.store.GetAdjacentProjectUp(ctx, currentOrder)
 	} else { // down
-		targetOrder = currentOrder + 1
-		adjacentProject, err = server.store.GetProjectByColumnOrder(ctx, targetOrder)
+		adjacentProject, err = server.store.GetAdjacentProjectDown(ctx, currentOrder)
 	}
 
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move project further in that direction"})
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move project further in that direction"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	targetOrder := adjacentProject.ColumnOrder
 
 	// 4. TRANSACTION: Swap Column Orders
 	errTx := server.store.ExecTx(ctx, func(q *db.Queries) error {
@@ -649,6 +658,7 @@ func projectResponse(project db.Project) projectData {
 		Content:     project.Content.String,
 		DemoUrl:     project.DemoUrl.String,
 		RepoUrl:     project.RepoUrl.String,
+		IsFeatured:  project.IsFeatured.Bool,
 		ColumnOrder: project.ColumnOrder,
 		CategoryID:  project.CategoryID.Int64,
 		PublishedAt: project.PublishedAt.Time.Format("2006-01-02 15:04:05"),
@@ -657,31 +667,14 @@ func projectResponse(project db.Project) projectData {
 
 		Category:   nil,
 		TechStacks: nil,
-		Tags:       nil,
+		Tags:       []TagData{},
 	}
 }
 
 func projectsResponse(projects []db.Project) []projectData {
 	data := make([]projectData, len(projects))
 	for i, project := range projects {
-		data[i] = projectData{
-			ID:          project.ID,
-			Title:       project.Title,
-			Slug:        project.Slug,
-			Thumbnail:   project.Thumbnail.String,
-			Content:     project.Content.String,
-			DemoUrl:     project.DemoUrl.String,
-			RepoUrl:     project.RepoUrl.String,
-			ColumnOrder: project.ColumnOrder,
-			CategoryID:  project.CategoryID.Int64,
-			PublishedAt: project.PublishedAt.Time.Format("2006-01-02 15:04:05"),
-			CreatedAt:   project.CreatedAt.Time.Format("2006-01-02 15:04:05"),
-			UpdatedAt:   project.UpdatedAt.Time.Format("2006-01-02 15:04:05"),
-
-			Category:   nil,
-			TechStacks: nil,
-			Tags:       nil,
-		}
+		data[i] = projectResponse(project)
 	}
 	return data
 }

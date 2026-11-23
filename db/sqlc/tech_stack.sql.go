@@ -66,6 +66,54 @@ func (q *Queries) DeleteTechStack(ctx context.Context, id int64) (TechStack, err
 	return i, err
 }
 
+const getAdjacentTechStackDown = `-- name: GetAdjacentTechStackDown :one
+SELECT id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
+FROM tech_stacks
+WHERE column_order > $1
+ORDER BY column_order ASC
+LIMIT 1
+`
+
+func (q *Queries) GetAdjacentTechStackDown(ctx context.Context, columnOrder int32) (TechStack, error) {
+	row := q.db.QueryRow(ctx, getAdjacentTechStackDown, columnOrder)
+	var i TechStack
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Icon,
+		&i.ColumnOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.TechStackCategoryID,
+	)
+	return i, err
+}
+
+const getAdjacentTechStackUp = `-- name: GetAdjacentTechStackUp :one
+SELECT id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
+FROM tech_stacks
+WHERE column_order < $1
+ORDER BY column_order DESC
+LIMIT 1
+`
+
+func (q *Queries) GetAdjacentTechStackUp(ctx context.Context, columnOrder int32) (TechStack, error) {
+	row := q.db.QueryRow(ctx, getAdjacentTechStackUp, columnOrder)
+	var i TechStack
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Icon,
+		&i.ColumnOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.TechStackCategoryID,
+	)
+	return i, err
+}
+
 const getTechStack = `-- name: GetTechStack :one
 select id, name, slug, icon, column_order, created_at, updated_at, tech_stack_category_id
 from tech_stacks

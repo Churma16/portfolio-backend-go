@@ -17,6 +17,20 @@ SELECT *
 FROM work_experiences
 WHERE column_order = $1 LIMIT 1;
 
+-- name: GetAdjacentWorkExperienceUp :one
+SELECT *
+FROM work_experiences
+WHERE column_order < $1
+ORDER BY column_order DESC
+LIMIT 1;
+
+-- name: GetAdjacentWorkExperienceDown :one
+SELECT *
+FROM work_experiences
+WHERE column_order > $1
+ORDER BY column_order ASC
+LIMIT 1;
+
 -- name: UpdateWorkExperience :one
 update work_experiences
 set company      = $2,

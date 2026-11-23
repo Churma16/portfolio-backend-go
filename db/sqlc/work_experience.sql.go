@@ -168,6 +168,62 @@ func (q *Queries) DeleteWorkExperienceTechStacks(ctx context.Context, workExperi
 	return err
 }
 
+const getAdjacentWorkExperienceDown = `-- name: GetAdjacentWorkExperienceDown :one
+SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
+FROM work_experiences
+WHERE column_order > $1
+ORDER BY column_order ASC
+LIMIT 1
+`
+
+func (q *Queries) GetAdjacentWorkExperienceDown(ctx context.Context, columnOrder int32) (WorkExperience, error) {
+	row := q.db.QueryRow(ctx, getAdjacentWorkExperienceDown, columnOrder)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.Company,
+		&i.Position,
+		&i.Location,
+		&i.StartDate,
+		&i.EndDate,
+		&i.IsCurrent,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ColumnOrder,
+		&i.Achievements,
+	)
+	return i, err
+}
+
+const getAdjacentWorkExperienceUp = `-- name: GetAdjacentWorkExperienceUp :one
+SELECT id, company, position, location, start_date, end_date, is_current, description, created_at, updated_at, column_order, achievements
+FROM work_experiences
+WHERE column_order < $1
+ORDER BY column_order DESC
+LIMIT 1
+`
+
+func (q *Queries) GetAdjacentWorkExperienceUp(ctx context.Context, columnOrder int32) (WorkExperience, error) {
+	row := q.db.QueryRow(ctx, getAdjacentWorkExperienceUp, columnOrder)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.Company,
+		&i.Position,
+		&i.Location,
+		&i.StartDate,
+		&i.EndDate,
+		&i.IsCurrent,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ColumnOrder,
+		&i.Achievements,
+	)
+	return i, err
+}
+
 const getTagsByWorkExperienceID = `-- name: GetTagsByWorkExperienceID :many
 SELECT work_experience_tags.work_experience_id, tags.id, tags.name, tags.slug, tags.color, tags.category_id, tags.created_at, tags.updated_at
 FROM tags
