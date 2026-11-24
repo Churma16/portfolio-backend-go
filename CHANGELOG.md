@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.9](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.8...v0.0.9) (2026-11-24)
+
+### Features
+
+* **telemetry:** add non-blocking telemetry middleware and event dispatcher ([#9](https://github.com/Churma16/portfolio-backend-go/issues/9)) ([a7de586](https://github.com/Churma16/portfolio-backend-go/commit/a7de5863d1eb4439d68e02385c7495818281ba7d))
+
 ## [0.0.8](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.7...v0.0.8) (2026-11-24)
 
 ### Features
