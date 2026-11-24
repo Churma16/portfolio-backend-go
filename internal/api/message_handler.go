@@ -6,6 +6,7 @@ import (
 	"go-portfolio-api/internal/response"
 	"go-portfolio-api/internal/util"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,6 +29,13 @@ func (server *Server) createMessage(ctx *gin.Context) {
 
 	// 1. LOGIKA HONEYPOT (Sama persis kayak Laravel $request->filled('gotcha'))
 	if req.Gotcha != "" {
+		go DispatchTelemetry(os.Getenv("MONITOR_URL"), TelemetryEvent{
+			Source: "go",
+			Type:   "spam_blocked",
+			Metadata: map[string]any{
+				"reason": "honeypot_triggered",
+			},
+		})
 		meta := response.NewMeta(http.StatusOK, "success", "Pesan terkirim!")
 		ctx.JSON(http.StatusOK, response.NewSingleDataResponse(meta, nil))
 		return
@@ -53,6 +61,13 @@ func (server *Server) createMessage(ctx *gin.Context) {
 		} else {
 			fmt.Printf("[success] NOTIFIKASI TERKIRIM KE PORTFOLIO-NOTIFIER UNTUK: %s\n", email)
 		}
+		DispatchTelemetry(os.Getenv("MONITOR_URL"), TelemetryEvent{
+			Source: "go",
+			Type:   "contact_submit",
+			Metadata: map[string]any{
+				"email": email,
+			},
+		})
 	}(req.Name, req.Email, req.Content)
 
 	// 4. Return Response

@@ -4,6 +4,7 @@ import (
 	db "go-portfolio-api/db/sqlc"
 	"go-portfolio-api/internal/service"
 	"go-portfolio-api/internal/storage"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -41,6 +42,10 @@ func NewServer(store *db.Store, redisClient *redis.Client, tokenKey string, stor
 		MaxAge:           12 * time.Hour,
 	}
 	router.Use(cors.New(config))
+
+	// Telemetry Middleware to report metrics to portfolio-monitor
+	monitorURL := os.Getenv("MONITOR_URL")
+	router.Use(TelemetryMiddleware(monitorURL))
 
 	//rute UTama
 	router.GET("/", func(c *gin.Context) {
