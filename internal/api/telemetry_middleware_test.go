@@ -166,8 +166,8 @@ func TestDispatchTelemetry_CustomEvent(t *testing.T) {
 	DispatchTelemetry(server.URL, TelemetryEvent{
 		Source: "go",
 		Type:   "contact_submit",
-		Metadata: map[string]any{
-			"email": "test@example.com",
+		Metadata: map[string]string{
+			"category": "inquiry",
 		},
 	})
 

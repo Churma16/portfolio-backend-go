@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -16,12 +17,12 @@ var telemetryClient = &http.Client{
 
 // TelemetryEvent represents an event payload sent to portfolio-monitor
 type TelemetryEvent struct {
-	Source     string         `json:"source"`
-	Type       string         `json:"type"`
-	Endpoint   string         `json:"endpoint,omitempty"`
-	StatusCode int            `json:"status_code,omitempty"`
-	DurationMs float64        `json:"duration_ms,omitempty"`
-	Metadata   map[string]any `json:"metadata,omitempty"`
+	Source     string            `json:"source"`
+	Type       string            `json:"type"`
+	Endpoint   string            `json:"endpoint,omitempty"`
+	StatusCode int               `json:"status_code,omitempty"`
+	DurationMs float64           `json:"duration_ms,omitempty"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 // TelemetryMiddleware records request duration and status, sending metrics to portfolio-monitor
@@ -57,7 +58,7 @@ func TelemetryMiddleware(monitorURL string) gin.HandlerFunc {
 	}
 }
 
-// DispatchTelemetry sends an event to portfolio-monitor asynchronously without blocking the caller
+// DispatchTelemetry sends a synchronous HTTP event to portfolio-monitor; call with 'go DispatchTelemetry(...)' for non-blocking execution.
 func DispatchTelemetry(monitorURL string, event TelemetryEvent) {
 	url := strings.TrimSpace(monitorURL)
 	if url == "" {
@@ -79,5 +80,6 @@ func DispatchTelemetry(monitorURL string, event TelemetryEvent) {
 	if err != nil {
 		return
 	}
+	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
 }

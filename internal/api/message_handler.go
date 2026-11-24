@@ -32,8 +32,8 @@ func (server *Server) createMessage(ctx *gin.Context) {
 		go DispatchTelemetry(os.Getenv("MONITOR_URL"), TelemetryEvent{
 			Source: "go",
 			Type:   "spam_blocked",
-			Metadata: map[string]any{
-				"reason": "honeypot_triggered",
+			Metadata: map[string]string{
+				"reason": "honeypot",
 			},
 		})
 		meta := response.NewMeta(http.StatusOK, "success", "Pesan terkirim!")
@@ -64,9 +64,6 @@ func (server *Server) createMessage(ctx *gin.Context) {
 		DispatchTelemetry(os.Getenv("MONITOR_URL"), TelemetryEvent{
 			Source: "go",
 			Type:   "contact_submit",
-			Metadata: map[string]any{
-				"email": email,
-			},
 		})
 	}(req.Name, req.Email, req.Content)
 
