@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.8](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.7...v0.0.8) (2026-11-24)
+
+### Features
+
+* dispatch contact form notifications to portfolio-notifier ([#8](https://github.com/Churma16/portfolio-backend-go/issues/8)) ([40c18b9](https://github.com/Churma16/portfolio-backend-go/commit/40c18b9d153789e4718872b95a59de880e890248))
+
 ## [0.0.7](https://github.com/Churma16/portfolio-backend-go/compare/v0.0.6...v0.0.7) (2026-11-23)
 
 ### Features
